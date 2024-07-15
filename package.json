@@ -1,0 +1,32 @@
+{
+  "name": "mapepire-js",
+  "version": "0.0.1",
+  "description": "Db",
+  "bin": {
+    "so": "./dist/index.js"
+  },
+  "publisher": "IBM",
+  "main": "./dist/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "test": "vitest",
+    "webpack:dev": "webpack --mode none --config ./webpack.config.js",
+    "webpack": "webpack --mode production --config ./webpack.config.js",
+    "deploy": "npm run webpack && npm i && npm publish --access public"
+  },
+  "keywords": [
+    "ibmi"
+  ],
+  "author": "IBM",
+  "devDependencies": {
+    "ts-loader": "^9.4.4",
+    "typescript": "^4.8.4",
+    "vitest": "^0.31.0",
+    "webpack": "^5.24.3",
+    "webpack-cli": "^4.5.0",
+    "@types/ws": "^8.5.10"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
