@@ -5,6 +5,7 @@ jobs:
   release:
     name: Test runner
     runs-on: ubuntu-latest
+    environment: OSSBLD
     steps:
       - uses: actions/checkout@v2
         with:
