@@ -12,7 +12,7 @@ beforeAll(async () => {
 });
 
 test(`Simple pool (using pool#execute)`, async () => {
-  const pool = new Pool({ creds: ENV_CREDS, maxSize: 5, startingSize: 3 });
+  const pool = new Pool({ creds, maxSize: 5, startingSize: 3 });
   let jobNames: string[];
 
   await pool.init();
