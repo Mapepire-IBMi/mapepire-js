@@ -6,5 +6,8 @@ test(`Basic url`, async () => {
   const uri = `db2i://liama:${base64Secret}@server.com:8076`;
 
   const result = UrlToDaemon(uri);
-  console.log(result);
+  expect(result.host).toBe(`server.com`);
+  expect(result.port).toBe(8076);
+  expect(result.user).toBe(`liama`);
+  expect(result.password).toBe(`password`);
 });
