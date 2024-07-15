@@ -70,18 +70,9 @@ export class Pool {
     return job.query(sql, opts);
   }
 
-  // TODO execute needs test cases
-  async execute<T>(sql: string, opts?: QueryOptions) {
+  execute<T>(sql: string, opts?: QueryOptions) {
     const job = this.getFreeJob();
-    const query = await job.query<T>(sql, opts);
-    const result = await query.execute();
-    await query.close();
-    
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    return result;
+    return job.execute<T>(sql, opts);
   }
 
   //TODO: takeFreeJob (removes from pool, returns the job)

@@ -134,6 +134,18 @@ export class SQLJob {
     return new Query(this, sql, opts);
   }
 
+  async execute<T>(sql: string, opts?: QueryOptions) {
+    const query = this.query<T>(sql, opts);
+    const result = await query.execute();
+    await query.close();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result;
+  }
+
   async getVersion(): Promise<VersionCheckResult> {
     const verObj = {
       id: SQLJob.getNewUniqueId(),
