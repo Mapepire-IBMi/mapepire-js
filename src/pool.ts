@@ -69,7 +69,7 @@ export class Pool {
   async execute<T>(sql: string, opts?: QueryOptions) {
     const job = this.getFreeJob();
     const query = await job.query<T>(sql, opts);
-    const result = await query.query();
+    const result = await query.execute();
     await query.close();
     
     if (result.error) {
