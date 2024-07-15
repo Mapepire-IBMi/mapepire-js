@@ -64,7 +64,6 @@ export interface QueryOptions {
   isTerseResults?: boolean;
   isClCommand?: boolean,
   parameters?: any[],
-  autoClose?: boolean
 }
 export interface SetConfigResult extends ServerResponse {
   tracedest: ServerTraceDest,

@@ -19,15 +19,12 @@ export class Query<T> {
   private state: QueryState = QueryState.NOT_YET_RUN;
   private isTerseResults: boolean;
 
-  public shouldAutoClose: boolean;
-
-  constructor(private job: SQLJob, query: string, opts: QueryOptions = { isClCommand: false, parameters: undefined, autoClose: false }) {
+  constructor(private job: SQLJob, query: string, opts: QueryOptions = { isClCommand: false, parameters: undefined }) {
     this.job = job;
     this.isPrepared = (undefined !== opts.parameters);
     this.parameters = opts.parameters;
     this.sql = query;
     this.isCLCommand = opts.isClCommand;
-    this.shouldAutoClose = opts.autoClose;
     this.isTerseResults = opts.isTerseResults;
 
     Query.globalQueryList.push(this);
@@ -50,7 +47,7 @@ export class Query<T> {
     // First, let's check to see if we should also cleanup
     // any cursors that remain open, and we've been told to close
     for (const query of this.globalQueryList) {
-      if (query.shouldAutoClose) {
+      if (query.getState() === QueryState.RUN_DONE || query.getState() === QueryState.ERROR){
         closePromises.push(query.close())
       }
     };
