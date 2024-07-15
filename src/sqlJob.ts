@@ -39,7 +39,13 @@ export class SQLJob {
       const ws = new WebSocket(`wss://${db2Server.host}:${db2Server.port}/db/`, {
         headers: { authorization: `Basic ${Buffer.from(`${db2Server.user}:${db2Server.password}`).toString('base64')}` },
         ca: db2Server.ca,
+        timeout: 5000,
         rejectUnauthorized: db2Server.ca ? false : true //This allows a self-signed certificate to be used
+      });
+
+      ws.on('error', (err: Error) => {
+        console.log(err);
+        reject(err);
       });
 
       ws.on('message', (data: Buffer) => {
@@ -82,6 +88,8 @@ export class SQLJob {
 
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
     this.socket = await this.getChannel(db2Server);
+
+    console.log(`Connected to server`);
 
     this.socket.on(`error`, (err) => {
       console.log(err);
