@@ -1,4 +1,4 @@
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 import { UrlToDaemon } from '../src/sqlJob';
 
 test(`Basic url`, async () => {
