@@ -12,3 +12,8 @@ jobs:
           fetch-depth: 1
       - run: npm ci
       - run: npm run test
+        env:
+          VITE_SERVER: ${{ secrets.VITE_SERVER }}
+          VITE_PORT: ${{ secrets.VITE_PORT }}
+          VITE_DB_USER: ${{ secrets.VITE_DB_USER }}
+          VITE_DB_PASS: ${{ secrets.VITE_DB_PASS }}
