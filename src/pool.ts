@@ -34,10 +34,15 @@ export class Pool {
     }
   }
 
-  async addJob() {
-    const newSqlJob = new SQLJob(this.options.opts);
+  // TODO: test cases with existingJob parameter
+  async addJob(existingJob?: SQLJob) {
+    const newSqlJob = existingJob || new SQLJob(this.options.opts);
     this.jobs.push(newSqlJob);
-    await newSqlJob.connect(this.options.creds);
+
+    if (newSqlJob.getStatus() === JobStatus.NotStarted) {
+      await newSqlJob.connect(this.options.creds);
+    }
+
     return newSqlJob;
   }
 
@@ -65,7 +70,7 @@ export class Pool {
     return job.query(sql, opts);
   }
 
-  // TODO needs test cases
+  // TODO execute needs test cases
   async execute<T>(sql: string, opts?: QueryOptions) {
     const job = this.getFreeJob();
     const query = await job.query<T>(sql, opts);
@@ -78,6 +83,8 @@ export class Pool {
 
     return result;
   }
+
+  //TODO: takeFreeJob (removes from pool, returns the job)
 
   end() {
     this.jobs.forEach(j => j.close());
