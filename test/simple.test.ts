@@ -6,6 +6,8 @@ import { ENV_CREDS } from './env';
 
 let creds: DaemonServer = {...ENV_CREDS};
 
+console.log(creds);
+
 test(`Simple test`, async () => {
   const ca = await getCertificate(creds);
   const job = new SQLJob();
