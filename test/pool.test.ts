@@ -1,6 +1,15 @@
-import { expect, test } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 import { Pool } from '../src/pool';
 import { ENV_CREDS } from './env';
+import { getCertificate } from '../src';
+import { DaemonServer } from '../src/types';
+
+let creds: DaemonServer = {...ENV_CREDS};
+
+beforeAll(async () => {
+  const ca = await getCertificate(creds);
+  creds.ca = ca.raw;
+});
 
 test(`Simple pool (using pool#execute)`, async () => {
   const pool = new Pool({ creds: ENV_CREDS, maxSize: 5, startingSize: 3 });
