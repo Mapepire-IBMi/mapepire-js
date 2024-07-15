@@ -4,9 +4,10 @@ import { SQLJob } from '../src';
 import { getCertificate } from '../src/tls';
 import { ENV_CREDS } from './env';
 
-let creds: DaemonServer = {...ENV_CREDS};
-
 console.log(creds);
+console.log(process.env);
+
+let creds: DaemonServer = {...ENV_CREDS};
 
 test(`Simple test`, async () => {
   const ca = await getCertificate(creds);
