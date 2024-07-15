@@ -1,0 +1,13 @@
+on:
+  pull_request:
+    
+jobs:
+  release:
+    name: Test runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - run: npm ci
+      - run: npm run test
