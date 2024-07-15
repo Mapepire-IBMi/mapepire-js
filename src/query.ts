@@ -92,6 +92,8 @@ export class Query<T> {
 
     this.state = queryResult.is_done ? QueryState.RUN_DONE : QueryState.RUN_MORE_DATA_AVAILABLE;
 
+    // TODO: if autoclose, should we close here?
+
     if (queryResult.success !== true && !this.isCLCommand) {
       this.state = QueryState.ERROR;
 

@@ -2,16 +2,16 @@ import { expect, test } from 'vitest';
 import { Pool } from '../src/pool';
 import { ENV_CREDS } from './env';
 
-test(`Simple pool`, async () => {
+test(`Simple pool (using pool#execute)`, async () => {
   const pool = new Pool({ creds: ENV_CREDS, maxSize: 5, startingSize: 3 });
   let jobNames: string[];
 
   await pool.init();
 
   const resultsA = await Promise.all([
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
   ])
 
   jobNames = resultsA.map(res => res.data[0]['00001']);
@@ -22,21 +22,21 @@ test(`Simple pool`, async () => {
   expect(pool.getActiveJobCount()).toBe(3);
 
   const resultsB = await Promise.all([
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
-    pool.query(`values (job_name)`).execute(),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
+    pool.execute(`values (job_name)`),
   ])
 
   jobNames = resultsB.map(res => res.data[0]['00001']);

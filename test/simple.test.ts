@@ -38,6 +38,8 @@ test(`Paging test`, async () => {
     result = await query.fetchMore(5);
   }
 
+  await query.close();
+
   expect(true).toBeTruthy();
   job.close();
 });
@@ -56,7 +58,9 @@ test(`error test`, async () => {
     
     expect(e.message).toBe(`[SQL0204] SCOOBY in LIAMA type *FILE not found., 42704, -204`);
   }
-  job.close();
+
+  await query.close();
+  await job.close();
 });
 
 test(`Multiple statements, one job`, async () => {
@@ -68,7 +72,8 @@ test(`Multiple statements, one job`, async () => {
 
   const resultB = await job.query<any[]>(`select * from sample.employee`).execute();
   expect(resultB.is_done).toBe(true);
-  job.close();
+
+  await job.close();
 });
 
 test(`Multiple statements parallel, one job`, async () => {
@@ -83,5 +88,5 @@ test(`Multiple statements parallel, one job`, async () => {
   expect(results[0].is_done).toBe(true);
   expect(results[1].is_done).toBe(true);
   
-  job.close();
+  await job.close();
 });
