@@ -1,4 +1,4 @@
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 import { UrlToDaemon } from '../src/sqlJob';
 
 test(`Basic url`, async () => {
@@ -6,7 +6,8 @@ test(`Basic url`, async () => {
   const uri = `db2i://liama:${base64Secret}@server.com:8076`;
 
   const result = UrlToDaemon(uri);
-  console.log(result);
-
-  // TOdo: hello
+  expect(result.host).toBe(`server.com`);
+  expect(result.port).toBe(8076);
+  expect(result.user).toBe(`liama`);
+  expect(result.password).toBe(`password`);
 });
