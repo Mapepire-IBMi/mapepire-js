@@ -48,7 +48,7 @@ module.exports = {
   },
   // yes, really source maps
   devtool: `source-map`,
-  // plugins: [
-  //   new webpack.BannerPlugin({banner: `#! /usr/bin/env node`, raw: true})
-  // ]
+  plugins: [
+    new webpack.IgnorePlugin({ resourceRegExp: /(bufferutil|utf-8-validate)/u })
+  ]
 }; 
