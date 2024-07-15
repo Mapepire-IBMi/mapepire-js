@@ -61,7 +61,7 @@ export class Query<T> {
     this.globalQueryList = this.globalQueryList.filter(q => q.getState() !== QueryState.RUN_DONE);
   }
 
-  public async run(rowsToFetch: number = this.rowsToFetch): Promise<QueryResult<T>> {
+  public async query(rowsToFetch: number = this.rowsToFetch): Promise<QueryResult<T>> {
     switch (this.state) {
       case QueryState.RUN_MORE_DATA_AVAILABLE:
         throw new Error('Statement has already been run');

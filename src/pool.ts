@@ -10,7 +10,8 @@ export interface PoolOptions {
 
 export class Pool {
   private jobs: SQLJob[] = [];
-  constructor(private options: PoolOptions) {}
+  constructor(private options: PoolOptions) {
+  }
 
   init() {
     let promises: Promise<SQLJob>[] = [];
@@ -62,6 +63,20 @@ export class Pool {
   query(sql: string, opts?: QueryOptions) {
     const job = this.getFreeJob();
     return job.query(sql, opts);
+  }
+
+  // TODO needs test cases
+  async execute<T>(sql: string, opts?: QueryOptions) {
+    const job = this.getFreeJob();
+    const query = await job.query<T>(sql, opts);
+    const result = await query.query();
+    await query.close();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result;
   }
 
   end() {

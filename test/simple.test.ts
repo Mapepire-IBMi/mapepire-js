@@ -14,7 +14,7 @@ test(`Simple test`, async () => {
   await job.connect(creds);
 
   const query = job.query<any[]>(`select * from sample.department`);
-  const result = await query.run();
+  const result = await query.query();
 
   expect(result.is_done).toBe(true);
   expect(result.data.length).not.toBe(0);
@@ -27,7 +27,7 @@ test(`Paging test`, async () => {
   await job.connect(creds);
 
   const query = job.query<any[]>(`select * from sample.department`);
-  let result = await query.run(5)
+  let result = await query.query(5)
   while (true) {
     expect(result.data.length).not.toBe(0);
 
@@ -49,7 +49,7 @@ test(`error test`, async () => {
   const query = job.query<any[]>(`select * from scooby`);
 
   try {
-    await query.run();
+    await query.query();
     expect(true).toBe(false);
   } catch (e) {
     console.log(e.message);
@@ -63,10 +63,10 @@ test(`Multiple statements, one job`, async () => {
   const job = new SQLJob();
   await job.connect(creds);
 
-  const resultA = await job.query<any[]>(`select * from sample.department`).run();
+  const resultA = await job.query<any[]>(`select * from sample.department`).query();
   expect(resultA.is_done).toBe(true);
 
-  const resultB = await job.query<any[]>(`select * from sample.employee`).run();
+  const resultB = await job.query<any[]>(`select * from sample.employee`).query();
   expect(resultB.is_done).toBe(true);
   job.close();
 });
@@ -76,8 +76,8 @@ test(`Multiple statements parallel, one job`, async () => {
   await job.connect(creds);
 
   const results = await Promise.all([
-    job.query<any[]>(`select * from sample.department`).run(),
-    job.query<any[]>(`select * from sample.employee`).run()
+    job.query<any[]>(`select * from sample.department`).query(),
+    job.query<any[]>(`select * from sample.employee`).query()
   ]);
 
   expect(results[0].is_done).toBe(true);

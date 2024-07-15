@@ -9,9 +9,9 @@ test(`Simple pool`, async () => {
   await pool.init();
 
   const resultsA = await Promise.all([
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
   ])
 
   jobNames = resultsA.map(res => res.data[0]['00001']);
@@ -22,21 +22,21 @@ test(`Simple pool`, async () => {
   expect(pool.getActiveJobCount()).toBe(3);
 
   const resultsB = await Promise.all([
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
-    pool.query(`values (job_name)`).run(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
+    pool.query(`values (job_name)`).query(),
   ])
 
   jobNames = resultsB.map(res => res.data[0]['00001']);

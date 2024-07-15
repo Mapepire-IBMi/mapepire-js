@@ -223,7 +223,7 @@ export class SQLJob {
   }
 
   async getPendingTransactions() {
-    const rows = await this.query<{THECOUNT: number}>(TransactionCountQuery).run(1);
+    const rows = await this.query<{THECOUNT: number}>(TransactionCountQuery).query(1);
 
     if (rows.success && rows.data && rows.data.length === 1 && rows.data[0].THECOUNT) return rows.data[0].THECOUNT;
     return 0;
@@ -237,7 +237,7 @@ export class SQLJob {
       default: throw new Error(`TransactionEndType ${type} not valid`);
     }
 
-    return this.query<JobLogEntry>(query).run();
+    return this.query<JobLogEntry>(query).query();
   }
   
   getUniqueId() {
