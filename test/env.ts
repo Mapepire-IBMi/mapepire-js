@@ -1,6 +1,5 @@
 import { DaemonServer } from "../src/types";
 
-console.log(creds);
 console.log(process.env);
 
 // Hello world
@@ -11,3 +10,5 @@ export const ENV_CREDS: DaemonServer = {
   user: process.env.VITE_DB_USER,
   password: process.env.VITE_DB_PASS
 }
+
+console.log(ENV_CREDS);
