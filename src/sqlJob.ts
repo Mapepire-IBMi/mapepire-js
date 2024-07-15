@@ -267,7 +267,9 @@ export class SQLJob {
   }
 
   dispose() {
-    this.socket.close();
+    if (this.socket) {
+      this.socket.close();
+    }
     this.status = JobStatus.Ended;
   }
 }
