@@ -47,15 +47,24 @@ export class Pool {
     return newSqlJob;
   }
 
-  getFreeJob() {
-    const job = this.jobs.find(j => j.getStatus() === JobStatus.Ready);
+  private getReadyJob() {
+    return this.jobs.find(j => j.getStatus() === JobStatus.Ready);
+  }
+
+  /**
+   * Returns a job as fast as possible. It will either be a ready job
+   * or the job with the least requests on the queue. Will spawn new jobs
+   * if the pool is not full but all jobs are busy.
+   */
+  getJob() {
+    const job = this.getReadyJob();
     if (!job) {
 
       // This code finds a job that is busy, but has the least requests on the queue
       const busyJobs = this.jobs.filter(j => j.getStatus() === JobStatus.Busy);
       const freeist = busyJobs.sort((a, b) => a.getRunningCount() - b.getRunningCount())[0];
 
-      // If this job is busy, and the pool is not full, add a new job
+      // If this job is busy, and the pool is not full, add a new job for later
       if (this.jobs.length < this.options.maxSize && freeist.getRunningCount() > 2) {
         this.addJob();
       }
@@ -66,13 +75,33 @@ export class Pool {
     return job;
   }
 
+  /**
+   * Returns a ready job if one is available, otherwise it will add a new job.
+   * If the pool is full, then it will find a job with the least requests on the queue.
+   */
+  async waitForJob() {
+    const job = this.getReadyJob();
+
+    if (!job) {
+      if (this.jobs.length < this.options.maxSize) {
+        const newJob = await this.addJob();
+
+        return newJob;
+      } else {
+        return this.getJob();
+      }
+    }
+
+    return job;
+  }
+
   query(sql: string, opts?: QueryOptions) {
-    const job = this.getFreeJob();
+    const job = this.getJob();
     return job.query(sql, opts);
   }
 
   execute<T>(sql: string, opts?: QueryOptions) {
-    const job = this.getFreeJob();
+    const job = this.getJob();
     return job.execute<T>(sql, opts);
   }
 
