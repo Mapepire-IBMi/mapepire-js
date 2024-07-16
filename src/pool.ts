@@ -37,11 +37,12 @@ export class Pool {
   // TODO: test cases with existingJob parameter
   async addJob(existingJob?: SQLJob) {
     const newSqlJob = existingJob || new SQLJob(this.options.opts);
-    this.jobs.push(newSqlJob);
 
     if (newSqlJob.getStatus() === JobStatus.NotStarted) {
       await newSqlJob.connect(this.options.creds);
     }
+
+    this.jobs.push(newSqlJob);
 
     return newSqlJob;
   }
