@@ -8,6 +8,15 @@ export interface PoolOptions {
   startingSize: number
 }
 
+interface PoolAddOptions {
+  /** An existing job to add to the pool */
+  existingJob?: SQLJob,
+  /** Don't add to the pool */
+  poolIgnore?: boolean
+}
+
+const INVALID_STATES = [JobStatus.Ended, JobStatus.NotStarted];
+
 export class Pool {
   private jobs: SQLJob[] = [];
   constructor(private options: PoolOptions) {
@@ -22,33 +31,47 @@ export class Pool {
     return Promise.all(promises);
   }
 
+  hasSpace() {
+    return (this.jobs.filter(j => !INVALID_STATES.includes(j.getStatus())).length < this.options.maxSize);
+  }
+
   getActiveJobCount() {
     return this.jobs.filter(j => j.getStatus() === JobStatus.Busy || j.getStatus() === JobStatus.Ready).length;
   }
 
   cleanup() {
     for (let i = this.jobs.length - 1; i >= 0; i--) {
-      if (this.jobs[i].getStatus() === JobStatus.Ended) {
+      if (INVALID_STATES.includes(this.jobs[i].getStatus())) {
         this.jobs.splice(i, 1);
       }
     }
   }
 
   // TODO: test cases with existingJob parameter
-  async addJob(existingJob?: SQLJob) {
-    const newSqlJob = existingJob || new SQLJob(this.options.opts);
+  private async addJob(options: PoolAddOptions = {}) {
+    if (options.existingJob) {
+      this.cleanup();
+    }
+
+    const newSqlJob = options.existingJob || new SQLJob(this.options.opts);
+
+    if (options.poolIgnore !== true) {
+      this.jobs.push(newSqlJob);
+    }
 
     if (newSqlJob.getStatus() === JobStatus.NotStarted) {
       await newSqlJob.connect(this.options.creds);
     }
-
-    this.jobs.push(newSqlJob);
 
     return newSqlJob;
   }
 
   private getReadyJob() {
     return this.jobs.find(j => j.getStatus() === JobStatus.Ready);
+  }
+
+  private getReadyJobIndex() {
+    return this.jobs.findIndex(j => j.getStatus() === JobStatus.Ready);
   }
 
   /**
@@ -65,7 +88,7 @@ export class Pool {
       const freeist = busyJobs.sort((a, b) => a.getRunningCount() - b.getRunningCount())[0];
 
       // If this job is busy, and the pool is not full, add a new job for later
-      if (this.jobs.length < this.options.maxSize && freeist.getRunningCount() > 2) {
+      if (this.hasSpace() && freeist.getRunningCount() > 2) {
         this.addJob();
       }
 
@@ -79,11 +102,11 @@ export class Pool {
    * Returns a ready job if one is available, otherwise it will add a new job.
    * If the pool is full, then it will find a job with the least requests on the queue.
    */
-  async waitForJob() {
+  async waitForJob(useNewJob = false) {
     const job = this.getReadyJob();
 
     if (!job) {
-      if (this.jobs.length < this.options.maxSize) {
+      if (this.hasSpace() || useNewJob) {
         const newJob = await this.addJob();
 
         return newJob;
@@ -95,6 +118,21 @@ export class Pool {
     return job;
   }
 
+  //TODO: needs test cases
+  /**
+   * Returns a job that is ready to be used. If no jobs are ready, it will
+   * create a new job and return that. Use `addJob` to add back to the pool.
+   */
+  async popJob() {
+    const index = this.getReadyJobIndex();
+    if (index > -1) {
+      return this.jobs.splice(index, 1)[0];
+    }
+
+    const newJob = await this.addJob({poolIgnore: true});
+    return newJob;
+  }
+
   query(sql: string, opts?: QueryOptions) {
     const job = this.getJob();
     return job.query(sql, opts);
@@ -104,8 +142,6 @@ export class Pool {
     const job = this.getJob();
     return job.execute<T>(sql, opts);
   }
-
-  //TODO: takeFreeJob (removes from pool, returns the job)
 
   end() {
     this.jobs.forEach(j => j.close());

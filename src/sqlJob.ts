@@ -87,6 +87,7 @@ export class SQLJob {
   }
 
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
+    this.status = JobStatus.Connecting;
     this.socket = await this.getChannel(db2Server);
 
     this.socket.on(`error`, (err) => {

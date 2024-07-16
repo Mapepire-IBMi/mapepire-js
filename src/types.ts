@@ -10,6 +10,7 @@ export interface DaemonServer {
 
 export enum JobStatus {
   NotStarted = "notStarted",
+  Connecting = "connecting",
   Ready = "ready",
   Busy = "busy",
   Ended = "ended"
