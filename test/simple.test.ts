@@ -58,7 +58,7 @@ test(`error test`, async () => {
   } catch (e) {
     console.log(e.message);
     
-    expect(e.message).toBe(`[SQL0204] SCOOBY in LIAMA type *FILE not found., 42704, -204`);
+    expect(e.message).toBe(`[SQL0204] SCOOBY in ${process.env.VITE_DB_USER.toUpperCase()} type *FILE not found., 42704, -204`);
   }
 
   await query.close();
