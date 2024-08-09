@@ -1,113 +1,237 @@
+/**
+ * Represents a DB2 server daemon with connection details.
+ */
 export interface DaemonServer {
+  /** The hostname or IP address of the server. */
   host: string;
+  
+  /** The port number to connect to (optional, defaults to 8076). */
   port?: number;
+  
+  /** The username for authentication. */
   user: string;
+  
+  /** The password for authentication. */
   password: string;
-  /** Always ignore certificates */
+  
+  /** Always ignore unauthorized certificates (optional). */
   ignoreUnauthorized?: boolean;
-  ca?: string|Buffer;
+  
+  /** Certificate authority (CA) for validating the server's certificate (optional). */
+  ca?: string | Buffer;
 }
 
+/** Enum representing the possible statuses of a job. */
 export enum JobStatus {
+  /** The job has not started yet. */
   NotStarted = "notStarted",
+  
+  /** The job is currently connecting to the server. */
   Connecting = "connecting",
+  
+  /** The job is ready to process queries. */
   Ready = "ready",
+  
+  /** The job is currently processing requests. */
   Busy = "busy",
+  
+  /** The job has ended. */
   Ended = "ended"
 }
 
+/** Enum representing the types of explain requests. */
 export enum ExplainType {
+  /** Run the SQL statement for explanation. */
   Run,
+  
+  /** Do not run the SQL statement for explanation. */
   DoNotRun
 }
 
+/** Enum representing the types of transaction endings. */
 export enum TransactionEndType {
+  /** Commit the transaction. */
   COMMIT,
+  
+  /** Rollback the transaction. */
   ROLLBACK
 }
 
+/** Interface representing a standard server response. */
 export interface ServerResponse {
+  /** Unique identifier for the request. */
   id: string;
+  
+  /** Indicates whether the request was successful. */
   success: boolean;
+  
+  /** Error message, if any. */
   error?: string;
+  
+  /** SQL return code. */
   sql_rc: number;
+  
+  /** SQL state code. */
   sql_state: string;
 }
 
+/** Interface representing the result of a connection request. */
 export interface ConnectionResult extends ServerResponse {
+  /** Unique job identifier for the connection. */
   job: string;
 }
+
+/** Interface representing the result of a version check. */
 export interface VersionCheckResult extends ServerResponse {
+  /** The build date of the version. */
   build_date: string;
+  
+  /** The version string. */
   version: string;
 }
 
+/** Interface representing the results of an explain request. */
 export interface ExplainResults<T> extends QueryResult<T> {
-  vemetadata: QueryMetaData,
+  /** Metadata about the query execution. */
+  vemetadata: QueryMetaData;
+
+  /** Data returned from the explain request. */
   vedata: any;
 }
 
+/** Interface representing the result of a trace data request. */
 export interface GetTraceDataResult extends ServerResponse {
-  tracedata: string
+  /** The retrieved trace data as a string. */
+  tracedata: string;
 }
 
+/** Enum representing the levels of server tracing. */
 export enum ServerTraceLevel {
-  OFF = "OFF", // off
-  ON = "ON", // all except datastream
-  ERRORS = "ERRORS", // errors only
-  DATASTREAM = "DATASTREAM" // all including datastream 
+  /** Tracing is turned off. */
+  OFF = "OFF",
+  
+  /** All trace data is collected except datastream. */
+  ON = "ON",
+  
+  /** Only error trace data is collected. */
+  ERRORS = "ERRORS",
+  
+  /** All trace data is collected including datastream. */
+  DATASTREAM = "DATASTREAM"
 }
+
+/** Enum representing the possible destinations for server trace data. */
 export enum ServerTraceDest {
+  /** Trace data is saved to a file. */
   FILE = "FILE", 
+  
+  /** Trace data is kept in memory. */
   IN_MEM = "IN_MEM"
 }
+
+/** Interface representing options for query execution. */
 export interface QueryOptions {
+  /** Whether to return terse results. */
   isTerseResults?: boolean;
-  isClCommand?: boolean,
-  parameters?: any[],
-}
-export interface SetConfigResult extends ServerResponse {
-  tracedest: ServerTraceDest,
-  tracelevel: ServerTraceLevel
+  
+  /** Whether the command is a CL command. */
+  isClCommand?: boolean;
+  
+  /** Parameters for the query. */
+  parameters?: any[];
 }
 
+/** Interface representing the result of a configuration set request. */
+export interface SetConfigResult extends ServerResponse {
+  /** Destination for trace data. */
+  tracedest: ServerTraceDest;
+  
+  /** Level of tracing set on the server. */
+  tracelevel: ServerTraceLevel;
+}
+
+/** Interface representing a standard query result. */
 export interface QueryResult<T> extends ServerResponse {
-  metadata: QueryMetaData,
+  /** Metadata about the query results. */
+  metadata: QueryMetaData;
+  
+  /** Indicates if the query execution is complete. */
   is_done: boolean;
+  
+  /** Indicates if results were returned. */
   has_results: boolean;
+  
+  /** Number of rows affected by the query. */
   update_count: number;
+  
+  /** Data returned from the query. */
   data: T[];
 }
 
+/** Interface representing a log entry from a job. */
 export interface JobLogEntry {
+  /** Unique message identifier. */
   MESSAGE_ID: string;
+  
+  /** Severity level of the message. */
   SEVERITY: string;
+  
+  /** Timestamp when the message was generated. */
   MESSAGE_TIMESTAMP: string;
+  
+  /** Library from which the message originated. */
   FROM_LIBRARY: string;
+  
+  /** Program from which the message originated. */
   FROM_PROGRAM: string;
+  
+  /** Type of message. */
   MESSAGE_TYPE: string;
+  
+  /** Main text of the message. */
   MESSAGE_TEXT: string;
-  MESSAGE_SECOND_LEVEL_TEXT: string
+  
+  /** Second level text of the message, if available. */
+  MESSAGE_SECOND_LEVEL_TEXT: string;
 }
+
+/** Interface representing the result of a CL command execution. */
 export interface CLCommandResult extends ServerResponse {
+  /** Log entries generated during the execution of the job. */
   joblog: JobLogEntry[];
 }
 
+/** Interface representing metadata about a query. */
 export interface QueryMetaData {
-  column_count: number,
-  columns: ColumnMetaData[],
-  job: string
+  /** Number of columns returned by the query. */
+  column_count: number;
+  
+  /** Metadata for each column. */
+  columns: ColumnMetaData[];
+  
+  /** Unique job identifier for the query. */
+  job: string;
 }
 
+/** Interface representing metadata for a single column in a query result. */
 export interface ColumnMetaData {
+  /** Display size of the column. */
   display_size: number;
+  
+  /** Label of the column. */
   label: string;
+  
+  /** Name of the column. */
   name: string;
+  
+  /** Type of the column. */
   type: string;
 }
 
-export type Rows = {[column: string]: string|number|boolean}[];
+/** Type representing a collection of rows returned from a query. */
+export type Rows = { [column: string]: string | number | boolean }[];
 
+/** Interface representing JDBC options for establishing a connection. */
 export interface JDBCOptions {
   // Format properties
   "naming"?: "sql" | "system";
