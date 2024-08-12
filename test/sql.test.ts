@@ -62,3 +62,82 @@ test("Run an SQL Query in Terse Format", async () => {
   expect(res.success).toBe(true);
   expect(res.metadata).toBeDefined();
 });
+
+test("Run an Invalid SQL Query", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>("SELECT * FROM NON_EXISTENT_TABLE");
+
+  try {
+    await query.execute(10);
+  } catch (error) {
+    expect(error.message).toContain("*FILE not found.");
+  } finally {
+    query.close();
+    job.close();
+  }
+});
+
+test("Run an SQL Query with Edge Case Inputs", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  let query = await job.query<any>("");
+
+  try {
+    await query.execute(1);
+  } catch (error) {
+    expect(error.message).toContain(
+      "A string parameter value with zero length was detected."
+    );
+  }
+
+  try {
+    query = await job.query<string>(666);
+    await query.execute(1);
+  } catch (error) {
+    expect(error.message).toContain("Query must be of type string");
+  }
+
+  try {
+    query = await job.query<any>("a");
+    await query.execute(1);
+  } catch (error) {
+    expect(error.message).toContain("Token A was not valid.");
+  }
+
+  try {
+    query = await job.query<any>(
+      "aeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSf"
+    );
+    await query.execute(1);
+  } catch (error) {
+    expect(error.message).toContain(
+      "Token AERIOGFJ304TQ34PROJQWE was not valid."
+    );
+  }
+
+  try {
+    query = await job.query<any>(
+      "SELECT * FROM (SELECT * FROM SAMPLE.SYSCOLUMNS)"
+    );
+    await query.execute(0);
+  } catch (error) {
+    expect(error.message).toEqual("rowsToFetch must be greater than 0");
+  }
+
+  try {
+    query = await job.query<any>("select * from sample.department");
+    await query.execute("s");
+  } catch (error) {
+    expect(error.message).toEqual("rowsToFetch must be a number");
+  }
+
+  try {
+    query = await job.query<any>("select * from sample.department");
+    const res = await query.execute(-1);
+  } catch (error) {
+    expect(error.message).toEqual("rowsToFetch must be greater than 0");
+  }
+  query.close();
+  job.close();
+});
