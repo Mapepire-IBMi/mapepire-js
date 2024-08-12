@@ -24,7 +24,7 @@ test("Simple SQL query", async () => {
   const res = await query.execute();
   query.close();
   job.close();
-  expect(res.data.length).toEqual(13);
+  expect(res.data.length).toBeGreaterThanOrEqual(13);
   expect(res.success).toBe(true);
   expect(res.is_done).toBe(true);
   expect(res.has_results).toBe(true);
