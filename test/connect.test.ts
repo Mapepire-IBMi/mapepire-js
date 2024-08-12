@@ -20,7 +20,9 @@ beforeAll(async () => {
 test(`Connect to database`, async () => {
   const job = new SQLJob();
   const res = await job.connect(creds);
+  await job.close();
   expect(res.job).toContain("QZDASOINIT")
+
 });
 
 test('Connect to Database with Invalid Properties', async () => {
@@ -32,7 +34,7 @@ test('Connect to Database with Invalid Properties', async () => {
     }
   });
 
-test('Unique job id for each connection', async () => {
+test('Implicit Disconnection on New Connect Request', async () => {
     const job = new SQLJob();
 
     // First connection
@@ -44,6 +46,7 @@ test('Unique job id for each connection', async () => {
     const secondRes = await job.connect(creds);
     const secondJobId = secondRes.job;
     expect(secondJobId).toContain('QZDASOINIT');
+    await job.close();
 
     // Ensure job IDs are different
     expect(firstJobId).not.toBe(secondJobId);

@@ -34,6 +34,7 @@ test('Invalid CL command', async () => {
   await job.connect(creds);
   const query = await job.clcommand('INVALIDCOMMAND')
   const res = await query.execute();
+  await job.close();
   expect(res.data.length).toBeGreaterThanOrEqual(1)
   expect(res.success).toBe(false)
   expect(res.error).toContain("[CPF0006] Errors occurred in command.")
