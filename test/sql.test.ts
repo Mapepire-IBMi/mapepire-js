@@ -46,3 +46,19 @@ test("Run an SQL Query with Large Dataset", async () => {
   expect(res.success).toBe(true);
   expect(res.metadata).toBeDefined(); // Metadata should be present
 });
+
+test("Run an SQL Query in Terse Format", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>("SELECT * FROM SAMPLE.SYSCOLUMNS", {
+    isTerseResults: true,
+  });
+  const res = await query.execute(5);
+  query.close();
+  job.close();
+
+  expect(res.data.length).toEqual(5);
+  expect(res.is_done).toBe(false);
+  expect(res.success).toBe(true);
+  expect(res.metadata).toBeDefined();
+});
