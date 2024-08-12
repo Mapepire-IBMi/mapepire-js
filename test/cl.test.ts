@@ -5,16 +5,10 @@ import { getCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
-let invalidCreds: DaemonServer = {
-  ...ENV_CREDS,
-  user: "fakeuser",
-  password: "fakepassword",
-};
 
 beforeAll(async () => {
   const ca = await getCertificate(creds);
   creds.ca = ca.raw;
-  invalidCreds.ca = ca.raw;
 });
 
 test("Run CL Command Successfully", async () => {
