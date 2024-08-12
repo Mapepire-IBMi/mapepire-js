@@ -16,7 +16,7 @@ const TransactionCountQuery = [
 
 export class SQLJob {
   private static uniqueIdCounter: number = 0;
-  private socket: any;
+  private socket: WebSocket;
   private responseEmitter: EventEmitter = new EventEmitter();
   private status: JobStatus = JobStatus.NotStarted;
 
