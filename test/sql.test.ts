@@ -38,8 +38,8 @@ test("Run an SQL Query with Large Dataset", async () => {
     isTerseResults: false,
   });
   const res = await query.execute(50);
-  query.close();
-  job.close();
+  await query.close();
+  await job.close();
 
   expect(res.data.length).toEqual(50);
   expect(res.is_done).toBe(false); // Expecting more rows available
@@ -54,8 +54,8 @@ test("Run an SQL Query in Terse Format", async () => {
     isTerseResults: true,
   });
   const res = await query.execute(5);
-  query.close();
-  job.close();
+  await query.close();
+  await job.close();
 
   expect(res.data.length).toEqual(5);
   expect(res.is_done).toBe(false);
