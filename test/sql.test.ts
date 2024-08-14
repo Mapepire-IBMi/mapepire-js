@@ -221,7 +221,7 @@ test("Prepare an Invalid SQL Statement", async () => {
   await job.connect(creds);
   let error;
   try {
-    const query = await job.query<any>("select * FROM FAKETABLE", {
+    const query = await job.query<any>("select * FROM MAPEPIRE.FAKETABLE", {
       parameters: [],
       isTerseResults: false,
     });
@@ -234,7 +234,7 @@ test("Prepare an Invalid SQL Statement", async () => {
 
   expect(error).toBeDefined();
   expect(error.message).toEqual(
-    `[SQL0204] FAKETABLE in ${ENV_CREDS.user} type *FILE not found., 42704, -204`
+    `[SQL0204] FAKETABLE in MAPEPIRE type *FILE not found., 42704, -204`
   );
 });
 
