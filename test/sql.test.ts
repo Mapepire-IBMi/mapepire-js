@@ -22,8 +22,8 @@ test("Simple SQL query", async () => {
   await job.connect(creds);
   const query = await job.query<any>("select * from sample.department");
   const res = await query.execute();
-  query.close();
-  job.close();
+  await query.close();
+  await job.close();
   expect(res.data.length).toBeGreaterThanOrEqual(13);
   expect(res.success).toBe(true);
   expect(res.is_done).toBe(true);
@@ -73,8 +73,8 @@ test("Run an Invalid SQL Query", async () => {
   } catch (error) {
     expect(error.message).toContain("*FILE not found.");
   } finally {
-    query.close();
-    job.close();
+    await query.close();
+    await job.close();
   }
 });
 
@@ -138,6 +138,244 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   } catch (error) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
-  query.close();
-  job.close();
+  await query.close();
+  await job.close();
+});
+
+test("Drop table", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>("drop table sample.delete if exists");
+  const res = await query.execute();
+  expect(res.has_results).toEqual(false);
+});
+
+test("Fetch remaining", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>("select * FROM SAMPLE.SYSCOLUMNS");
+  let res = await query.execute();
+  while (!res.is_done) {
+    res = await query.fetchMore(300);
+  }
+  await query.close();
+  await job.close();
+  expect(res.is_done).toEqual(true);
+});
+
+test(
+  "Fetch remaining with prepared",
+  async () => {
+    const job = new SQLJob();
+    await job.connect(creds);
+    const query = await job.query<any>("select * FROM SAMPLE.SYSCOLUMNS", {
+      parameters: [],
+    });
+    let res = await query.execute();
+    while (!res.is_done) {
+      res = await query.fetchMore(300);
+    }
+    await query.close();
+    await job.close();
+    expect(res.is_done).toEqual(true);
+  },
+  { timeout: 999999 }
+);
+
+test("Prepared Statement", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>(
+    "select * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+    {
+      parameters: ["LONG_COMMENT"],
+    }
+  );
+  const res = await query.execute(10);
+  await query.close();
+  await job.close();
+  expect(res.success).toBe(true);
+  expect(res.data.length).toBeGreaterThan(0);
+});
+
+test("Prepare SQL Statement in Terse Format", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>(
+    "select * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+    {
+      parameters: ["LONG_COMMENT"],
+      isTerseResults: true,
+    }
+  );
+  const res = await query.execute();
+  await query.close();
+  await job.close();
+
+  expect(res.success).toBe(true);
+  expect(res.metadata).toBeDefined();
+});
+
+test("Prepare an Invalid SQL Statement", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  let error;
+  try {
+    const query = await job.query<any>("select * FROM FAKETABLE", {
+      parameters: [],
+      isTerseResults: false,
+    });
+    await query.execute();
+  } catch (err) {
+    error = err;
+  } finally {
+    await job.close();
+  }
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual(
+    "[SQL0204] FAKETABLE in JONATHAN type *FILE not found., 42704, -204"
+  );
+});
+
+test("Prepare SQL Statement with No Terse Option Provided", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>(
+    "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+    {
+      parameters: ["Value"],
+    }
+  );
+  const res = await query.execute();
+  await query.close();
+  await job.close();
+
+  expect(res.success).toBe(true);
+  expect(res.metadata).toBeDefined();
+});
+
+test("Prepare an SQL Statement with multiple parameters", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const query = await job.query<any>(
+    `SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME IN (?, ?, ?)`,
+    {
+      isTerseResults: false,
+      parameters: ["LONG_COMMENT", "?", "CONSTRAINT_NAME"],
+    }
+  );
+  const res = await query.execute();
+  await query.close();
+  await job.close();
+
+  expect(res.success).toBe(true);
+  expect(res.metadata).toBeDefined();
+});
+
+test("Prepare SQL with Edge Case Inputs", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  let error;
+  let query;
+  try {
+    query = await job.query<any>("", {
+      isTerseResults: false,
+      parameters: [],
+    });
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+  expect(error).toBeDefined();
+  expect(error.message).toEqual(
+    "A string parameter value with zero length was detected., 43617, -99999"
+  );
+
+  try {
+    query = await job.query<any>(
+      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+      {
+        isTerseResults: false,
+        parameters: 99,
+      }
+    );
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual("Not a JSON Array: 99");
+
+  try {
+    query = await job.query<any>(
+      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+      {
+        isTerseResults: false,
+        parameters: [],
+      }
+    );
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual(
+    "The number of parameter values set or registered does not match the number of parameters., 07001, -99999"
+  );
+
+  try {
+    const query = await job.query<any>(
+      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+      {
+        isTerseResults: false,
+        parameters: [1, "a"],
+      }
+    );
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual(
+    "Descriptor index not valid. (2>1), 07009, -99999"
+  );
+
+  try {
+    const query = await job.query<any>(
+      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+      {
+        isTerseResults: false,
+        parameters: [{ name: "asdf" }],
+      }
+    );
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual("JsonObject");
+
+  try {
+    const query = await job.query<any>(
+      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+      {
+        isTerseResults: false,
+        parameters: [[]],
+      }
+    );
+    await query.execute();
+  } catch (err) {
+    error = err;
+  }
+
+  await query.close();
+  await job.close();
+
+  expect(error).toBeDefined();
+  expect(error.message).toEqual("Internal Error: IllegalStateException");
 });
