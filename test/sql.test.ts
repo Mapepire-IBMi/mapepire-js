@@ -379,3 +379,15 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   expect(error).toBeDefined();
   expect(error.message).toEqual("Internal Error: IllegalStateException");
 });
+
+test("Execute directly from sql job", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const res = await job.execute<any>("select * from sample.department");
+  await job.close();
+  expect(res.data.length).toBeGreaterThanOrEqual(13);
+  expect(res.success).toBe(true);
+  expect(res.is_done).toBe(true);
+  expect(res.has_results).toBe(true);
+  expect(res.update_count).toBe(-1);
+});
