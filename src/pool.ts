@@ -19,11 +19,16 @@ const INVALID_STATES = [JobStatus.Ended, JobStatus.NotStarted];
 
 export class Pool {
   private jobs: SQLJob[] = [];
-  constructor(private options: PoolOptions) {
-  }
+  constructor(private options: PoolOptions) {}
 
   init() {
     let promises: Promise<SQLJob>[] = [];
+
+    if (this.options.maxSize === 0) {
+      return Promise.reject("Max size must be greater than 0");
+    } else if (this.options.startingSize > this.options.maxSize) {
+      return Promise.reject("Max size must be greater than starting size");
+    }
     for (let i = 0; i < this.options.startingSize; i++) {
       promises.push(this.addJob());
     }
@@ -32,11 +37,17 @@ export class Pool {
   }
 
   hasSpace() {
-    return (this.jobs.filter(j => !INVALID_STATES.includes(j.getStatus())).length < this.options.maxSize);
+    return (
+      this.jobs.filter((j) => !INVALID_STATES.includes(j.getStatus())).length <
+      this.options.maxSize
+    );
   }
 
   getActiveJobCount() {
-    return this.jobs.filter(j => j.getStatus() === JobStatus.Busy || j.getStatus() === JobStatus.Ready).length;
+    return this.jobs.filter(
+      (j) =>
+        j.getStatus() === JobStatus.Busy || j.getStatus() === JobStatus.Ready
+    ).length;
   }
 
   cleanup() {
@@ -67,11 +78,11 @@ export class Pool {
   }
 
   private getReadyJob() {
-    return this.jobs.find(j => j.getStatus() === JobStatus.Ready);
+    return this.jobs.find((j) => j.getStatus() === JobStatus.Ready);
   }
 
   private getReadyJobIndex() {
-    return this.jobs.findIndex(j => j.getStatus() === JobStatus.Ready);
+    return this.jobs.findIndex((j) => j.getStatus() === JobStatus.Ready);
   }
 
   /**
@@ -82,10 +93,13 @@ export class Pool {
   getJob() {
     const job = this.getReadyJob();
     if (!job) {
-
       // This code finds a job that is busy, but has the least requests on the queue
-      const busyJobs = this.jobs.filter(j => j.getStatus() === JobStatus.Busy);
-      const freeist = busyJobs.sort((a, b) => a.getRunningCount() - b.getRunningCount())[0];
+      const busyJobs = this.jobs.filter(
+        (j) => j.getStatus() === JobStatus.Busy
+      );
+      const freeist = busyJobs.sort(
+        (a, b) => a.getRunningCount() - b.getRunningCount()
+      )[0];
 
       // If this job is busy, and the pool is not full, add a new job for later
       if (this.hasSpace() && freeist.getRunningCount() > 2) {
@@ -129,7 +143,7 @@ export class Pool {
       return this.jobs.splice(index, 1)[0];
     }
 
-    const newJob = await this.addJob({poolIgnore: true});
+    const newJob = await this.addJob({ poolIgnore: true });
     return newJob;
   }
 
@@ -143,8 +157,7 @@ export class Pool {
     return job.execute<T>(sql, opts);
   }
 
-  end() {
-    this.jobs.forEach(j => j.close());
+  async end() {
+    await Promise.all(this.jobs.map((j) => j.close()));
   }
-  
 }
