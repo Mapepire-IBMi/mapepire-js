@@ -1,23 +1,90 @@
 import { SQLJob } from "./sqlJob";
 import { QueryOptions, QueryResult } from "./types";
+
+/**
+ * Represents the possible states of a query execution.
+ */
 export enum QueryState {
+  /**
+   * Indicates that the query has not yet been run.
+   */
   NOT_YET_RUN = 1,
+
+  /**
+   * Indicates that the query has been executed, and more data is available for retrieval.
+   */
   RUN_MORE_DATA_AVAILABLE = 2,
+
+  /**
+   * Indicates that the query has been successfully executed and all data has been retrieved.
+   */
   RUN_DONE = 3,
-  ERROR = 4,
+
+  /**
+   * Indicates that an error occurred during the query execution.
+   */
+  ERROR = 4
 }
 
+/**
+ * Represents a SQL query that can be executed and managed within a SQL job.
+ *
+ * @template T - The type of the result returned by the query.
+ */
 export class Query<T> {
+  
+  /**
+   * List of all global queries that are currently open.
+   */
   private static globalQueryList: Query<any>[] = [];
+
+  /**
+   * The correlation ID associated with the query.
+   */
   private correlationId: string;
+
+  /**
+   * The SQL statement to be executed.
+   */
   private sql: string;
+
+  /**
+   * Indicates if the query has been prepared.
+   */
   private isPrepared: boolean = false;
+
+  /**
+   * The parameters to be used with the SQL query.
+   */
   private parameters: any[] | undefined;
+
+  /**
+   * The number of rows to fetch in each execution.
+   */
   private rowsToFetch: number = 100;
+
+  /**
+   * Indicates if the query is a CL command.
+   */
   private isCLCommand: boolean;
+
+  /**
+   * The current state of the query execution.
+   */
   private state: QueryState = QueryState.NOT_YET_RUN;
+
+  /**
+   * Indicates if the results should be terse.
+   */
   private isTerseResults: boolean;
 
+  /**
+   * Constructs a new Query instance.
+   *
+   * @param job - The SQL job that this query will be executed within.
+   * @param query - The SQL statement to execute.
+   * @param opts - Optional settings for the query, such as parameters and command type.
+   */
   constructor(
     private job: SQLJob,
     query: string,
@@ -36,12 +103,24 @@ export class Query<T> {
     Query.globalQueryList.push(this);
   }
 
+  /**
+   * Retrieves a Query instance by its correlation ID.
+   *
+   * @param id - The correlation ID of the query.
+   * @returns The corresponding Query instance or undefined if not found.
+   */
   public static byId(id: string) {
     return undefined === id || "" === id
       ? undefined
       : Query.globalQueryList.find((query) => query.correlationId === id);
   }
 
+  /**
+   * Retrieves a list of open correlation IDs for the specified job.
+   *
+   * @param forJob - Optional SQLJob to filter the queries by.
+   * @returns An array of correlation IDs for open queries.
+   */
   public static getOpenIds(forJob?: SQLJob) {
     return this.globalQueryList
       .filter((q) => q.job == forJob || forJob === undefined)
@@ -53,6 +132,11 @@ export class Query<T> {
       .map((q) => q.correlationId);
   }
 
+  /**
+   * Cleans up completed or erroneous queries from the global query list.
+   *
+   * @returns A promise that resolves when cleanup is complete.
+   */
   public static async cleanup() {
     let closePromises = [];
 
@@ -75,6 +159,12 @@ export class Query<T> {
     );
   }
 
+  /**
+   * Executes the SQL query and returns the results.
+   *
+   * @param rowsToFetch - The number of rows to fetch (defaults to the configured number).
+   * @returns A promise that resolves to the query result.
+   */
   public async execute(
     rowsToFetch: number = this.rowsToFetch
   ): Promise<QueryResult<T>> {
@@ -116,7 +206,6 @@ export class Query<T> {
       : QueryState.RUN_MORE_DATA_AVAILABLE;
 
     // TODO: if autoclose, should we close here?
-
     if (queryResult.success !== true && !this.isCLCommand) {
       this.state = QueryState.ERROR;
 
@@ -137,9 +226,13 @@ export class Query<T> {
     return queryResult;
   }
 
-  public async fetchMore(
-    rowsToFetch: number = this.rowsToFetch
-  ): Promise<QueryResult<T>> {
+  /**
+   * Fetches more rows from the currently running query.
+   *
+   * @param rowsToFetch - The number of additional rows to fetch.
+   * @returns A promise that resolves to the query result.
+   */
+  public async fetchMore(rowsToFetch: number = this.rowsToFetch): Promise<QueryResult<T>> {
     //TODO: verify that the SQL job hasn't changed
     switch (this.state) {
       case QueryState.NOT_YET_RUN:
@@ -172,6 +265,11 @@ export class Query<T> {
     return queryResult;
   }
 
+  /**
+   * Closes the query and releases any associated resources.
+   *
+   * @returns A promise that resolves when the query is closed.
+   */
   public async close() {
     if (this.correlationId && this.state !== QueryState.RUN_DONE) {
       this.state = QueryState.RUN_DONE;
@@ -187,10 +285,20 @@ export class Query<T> {
     }
   }
 
+  /**
+   * Retrieves the correlation ID of the query.
+   *
+   * @returns The correlation ID as a string.
+   */
   public getId(): string {
     return this.correlationId;
   }
 
+  /**
+   * Retrieves the current state of the query.
+   *
+   * @returns The current state as a QueryState.
+   */
   public getState(): QueryState {
     return this.state;
   }

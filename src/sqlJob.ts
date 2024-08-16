@@ -32,12 +32,19 @@ const TransactionCountQuery = [
   `    (local_record_changes_pending = 'YES' or local_object_changes_pending = 'YES')`,
 ].join(`\n`);
 
+/**
+ * Represents a SQL job that manages connections and queries to a database.
+ */
 export class SQLJob {
+  /**
+   * A counter to generate unique IDs for each SQLJob instance.
+   */
   private static uniqueIdCounter: number = 0;
   private socket: WebSocket;
   private responseEmitter: EventEmitter = new EventEmitter();
   private status: JobStatus = JobStatus.NotStarted;
 
+  private traceFile: string | undefined;
   private traceFile: string | undefined;
   private isTracingChannelData: boolean = false;
 
@@ -47,11 +54,29 @@ export class SQLJob {
 
   id: string | undefined;
 
+  /**
+   * Generates a new unique ID with an optional prefix.
+   *
+   * @param prefix - An optional prefix for the unique ID.
+   * @returns A unique ID string.
+   */
   public static getNewUniqueId(prefix: string = `id`): string {
     return prefix + ++SQLJob.uniqueIdCounter;
   }
 
+  /**
+   * Constructs a new SQLJob instance with the specified options.
+   *
+   * @param options - The options for configuring the SQL job.
+   */
   constructor(public options: JDBCOptions = {}) {}
+
+  /**
+   * Establishes a WebSocket connection to the specified DB2 server.
+   *
+   * @param db2Server - The server details for the connection.
+   * @returns A promise that resolves to the WebSocket instance.
+   */
   private getChannel(db2Server: DaemonServer): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(
@@ -92,6 +117,12 @@ export class SQLJob {
     });
   }
 
+  /**
+   * Sends a message to the connected database server.
+   *
+   * @param content - The message content to send.
+   * @returns A promise that resolves to the server's response.
+   */
   async send(content: string): Promise<string> {
     if (this.isTracingChannelData) console.log(content);
 
@@ -105,14 +136,30 @@ export class SQLJob {
     });
   }
 
+  /**
+   * Retrieves the current status of the job.
+   *
+   * @returns The current status of the job.
+   */
   getStatus() {
     return this.getRunningCount() > 0 ? JobStatus.Busy : this.status;
   }
 
+  /**
+   * Gets the count of ongoing requests for the job.
+   *
+   * @returns The number of ongoing requests.
+   */
   getRunningCount() {
     return this.responseEmitter.eventNames().length;
   }
 
+  /**
+   * Connects to the specified DB2 server and initializes the SQL job.
+   *
+   * @param db2Server - The server details for the connection.
+   * @returns A promise that resolves to the connection result.
+   */
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
     this.status = JobStatus.Connecting;
     this.socket = await this.getChannel(db2Server);
@@ -163,10 +210,24 @@ export class SQLJob {
     return connectResult;
   }
 
+  /**
+   * Creates a query object for the specified SQL statement.
+   *
+   * @param sql - The SQL statement to query.
+   * @param opts - Optional settings for the query.
+   * @returns A new Query instance.
+   */
   query<T>(sql: string, opts?: QueryOptions): Query<T> {
     return new Query(this, sql, opts);
   }
 
+  /**
+   * Executes an SQL command and returns the result.
+   *
+   * @param sql - The SQL command to execute.
+   * @param opts - Optional settings for the command.
+   * @returns A promise that resolves to the command execution result.
+   */
   async execute<T>(sql: string, opts?: QueryOptions) {
     const query = this.query<T>(sql, opts);
     const result = await query.execute();
@@ -179,6 +240,11 @@ export class SQLJob {
     return result;
   }
 
+  /**
+   * Retrieves the version information from the database server.
+   *
+   * @returns A promise that resolves to the version check result.
+   */
   async getVersion(): Promise<VersionCheckResult> {
     const verObj = {
       id: SQLJob.getNewUniqueId(),
@@ -196,6 +262,13 @@ export class SQLJob {
     return version;
   }
 
+  /**
+   * Explains a SQL statement and returns the results.
+   *
+   * @param statement - The SQL statement to explain.
+   * @param type - The type of explain to perform (default is ExplainType.Run).
+   * @returns A promise that resolves to the explain results.
+   */
   async explain(
     statement: string,
     type: ExplainType = ExplainType.Run
@@ -218,10 +291,20 @@ export class SQLJob {
     return explainResult;
   }
 
+  /**
+   * Retrieves the file path of the trace file, if available.
+   *
+   * @returns The trace file path or undefined.
+   */
   getTraceFilePath(): string | undefined {
     return this.traceFile;
   }
 
+  /**
+   * Retrieves trace data from the backend.
+   *
+   * @returns A promise that resolves to the trace data result.
+   */
   async getTraceData(): Promise<GetTraceDataResult> {
     const tracedataReqObj = {
       id: SQLJob.getNewUniqueId(),
@@ -239,6 +322,13 @@ export class SQLJob {
     return rpy;
   }
 
+  /**
+   * Configures the trace options on the backend.
+   *
+   * @param dest - The destination for the trace data.
+   * @param level - The level of tracing to apply.
+   * @returns A promise that resolves to the result of the configuration.
+   */
   async setTraceConfig(
     dest: ServerTraceDest,
     level: ServerTraceLevel
@@ -266,10 +356,21 @@ export class SQLJob {
     return rpy;
   }
 
+  /**
+   * Creates a command-line SQL query.
+   *
+   * @param cmd - The command-line SQL command to execute.
+   * @returns A new Query instance for the command.
+   */
   clcommand(cmd: string): Query<any> {
     return new Query(this, cmd, { isClCommand: true });
   }
 
+  /**
+   * Checks if the job is under commit control based on the transaction isolation level.
+   *
+   * @returns A boolean indicating if the job is under commit control.
+   */
   underCommitControl() {
     return (
       this.options["transaction isolation"] &&
@@ -277,6 +378,11 @@ export class SQLJob {
     );
   }
 
+  /**
+   * Retrieves the count of pending transactions.
+   *
+   * @returns A promise that resolves to the count of pending transactions.
+   */
   async getPendingTransactions() {
     const rows = await this.query<{ THECOUNT: number }>(
       TransactionCountQuery
@@ -292,6 +398,12 @@ export class SQLJob {
     return 0;
   }
 
+  /**
+   * Ends the current transaction by committing or rolling back.
+   *
+   * @param type - The type of transaction ending (commit or rollback).
+   * @returns A promise that resolves to the result of the transaction operation.
+   */
   async endTransaction(type: TransactionEndType) {
     let query;
     switch (type) {
@@ -307,15 +419,26 @@ export class SQLJob {
 
     return this.query<JobLogEntry>(query).execute();
   }
-
+  
+  /**
+   * Retrieves the unique ID assigned to this SQLJob instance.
+   *
+   * @returns The unique ID.
+   */
   getUniqueId() {
     return this.uniqueId;
   }
 
+  /**
+   * Closes the SQL job and cleans up resources.
+   */
   async close() {
     this.dispose();
   }
 
+  /**
+   * Disposes of the resources associated with the SQL job.
+   */
   dispose() {
     if (this.socket) {
       this.socket.close();
@@ -324,6 +447,13 @@ export class SQLJob {
   }
 }
 
+/**
+ * Converts a database URI into a DaemonServer object.
+ *
+ * @param uri - The URI representing the database connection details.
+ * @returns A DaemonServer object containing the parsed details.
+ * @throws An error if the URI has an invalid protocol or missing required fields.
+ */
 export function UrlToDaemon(uri: string): DaemonServer {
   const url = new URL(uri);
 
