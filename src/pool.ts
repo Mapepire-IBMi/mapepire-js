@@ -51,8 +51,7 @@ export class Pool {
    *
    * @param options - The options for configuring the connection pool.
    */
-  constructor(private options: PoolOptions) {
-  }
+  constructor(private options: PoolOptions) {}
 
   /**
    * Initializes the pool by creating a number of SQL jobs defined by the starting size.
@@ -62,10 +61,14 @@ export class Pool {
   init() {
     let promises: Promise<SQLJob>[] = [];
 
-    if (this.options.maxSize === 0) {
+    if (this.options.maxSize <= 0) {
       return Promise.reject("Max size must be greater than 0");
+    } else if (this.options.startingSize <= 0) {
+      return Promise.reject("Starting size must be greater than 0");
     } else if (this.options.startingSize > this.options.maxSize) {
-      return Promise.reject("Max size must be greater than starting size");
+      return Promise.reject(
+        "Max size must be greater than or equal to starting size"
+      );
     }
     for (let i = 0; i < this.options.startingSize; i++) {
       promises.push(this.addJob());
@@ -167,12 +170,10 @@ export class Pool {
       const freeist = busyJobs.sort(
         (a, b) => a.getRunningCount() - b.getRunningCount()
       )[0];
-
       // If this job is busy, and the pool is not full, add a new job for later
       if (this.hasSpace() && freeist.getRunningCount() > 2) {
         this.addJob();
       }
-
       return freeist;
     }
 
@@ -205,7 +206,7 @@ export class Pool {
   /**
    * Pops a job from the pool if one is ready. If no jobs are ready, it will
    * create a new job and return that. The returned job should be added back to the pool.
-   * 
+   *
    * @returns A promise that resolves to a ready job or a new job.
    */
   async popJob() {
@@ -246,6 +247,6 @@ export class Pool {
    * Closes all jobs in the pool and releases resources.
    */
   end() {
-    this.jobs.forEach(j => j.close());
+    this.jobs.forEach((j) => j.close());
   }
 }

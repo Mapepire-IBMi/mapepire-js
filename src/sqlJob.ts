@@ -129,8 +129,11 @@ export class SQLJob {
     let req: ReqRespFmt = JSON.parse(content);
     this.socket.send(content);
     return new Promise((resolve, reject) => {
+      this.status = JobStatus.Busy;
       this.responseEmitter.on(req.id, (x: string) => {
         this.responseEmitter.removeAllListeners(req.id);
+        this.status =
+          this.getRunningCount() === 0 ? JobStatus.Ready : JobStatus.Busy;
         resolve(x);
       });
     });
@@ -142,7 +145,7 @@ export class SQLJob {
    * @returns The current status of the job.
    */
   getStatus() {
-    return this.getRunningCount() > 0 ? JobStatus.Busy : this.status;
+    return this.status;
   }
 
   /**
