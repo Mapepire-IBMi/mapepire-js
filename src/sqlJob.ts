@@ -1,11 +1,29 @@
-import { JDBCOptions, ConnectionResult, Rows, QueryResult, JobLogEntry, CLCommandResult, VersionCheckResult, GetTraceDataResult, ServerTraceDest, ServerTraceLevel, SetConfigResult, QueryOptions, ExplainResults, DaemonServer, ExplainType, JobStatus, TransactionEndType } from "./types";
+import {
+  JDBCOptions,
+  ConnectionResult,
+  Rows,
+  QueryResult,
+  JobLogEntry,
+  CLCommandResult,
+  VersionCheckResult,
+  GetTraceDataResult,
+  ServerTraceDest,
+  ServerTraceLevel,
+  SetConfigResult,
+  QueryOptions,
+  ExplainResults,
+  DaemonServer,
+  ExplainType,
+  JobStatus,
+  TransactionEndType,
+} from "./types";
 import { Query } from "./query";
 import { EventEmitter } from "stream";
-import WebSocket from 'ws';
+import WebSocket from "ws";
 
 interface ReqRespFmt {
-  id: string
-};
+  id: string;
+}
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -22,11 +40,11 @@ export class SQLJob {
    * A counter to generate unique IDs for each SQLJob instance.
    */
   private static uniqueIdCounter: number = 0;
-
-  private socket: any;
+  private socket: WebSocket;
   private responseEmitter: EventEmitter = new EventEmitter();
   private status: JobStatus = JobStatus.NotStarted;
 
+  private traceFile: string | undefined;
   private traceFile: string | undefined;
   private isTracingChannelData: boolean = false;
 
@@ -43,7 +61,7 @@ export class SQLJob {
    * @returns A unique ID string.
    */
   public static getNewUniqueId(prefix: string = `id`): string {
-    return prefix + (++SQLJob.uniqueIdCounter);
+    return prefix + ++SQLJob.uniqueIdCounter;
   }
 
   /**
@@ -61,21 +79,30 @@ export class SQLJob {
    */
   private getChannel(db2Server: DaemonServer): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(`wss://${db2Server.host}:${db2Server.port}/db/`, {
-        headers: { authorization: `Basic ${Buffer.from(`${db2Server.user}:${db2Server.password}`).toString('base64')}` },
-        ca: db2Server.ca,
-        timeout: 5000,
-        rejectUnauthorized: db2Server.ca ? false : true // Allows a self-signed certificate to be used
-      });
+      const ws = new WebSocket(
+        `wss://${db2Server.host}:${db2Server.port}/db/`,
+        {
+          headers: {
+            authorization: `Basic ${Buffer.from(
+              `${db2Server.user}:${db2Server.password}`
+            ).toString("base64")}`,
+          },
+          ca: db2Server.ca,
+          timeout: 5000,
+          rejectUnauthorized: db2Server.ca ? false : true, //This allows a self-signed certificate to be used
+        }
+      );
 
-      ws.on('error', (err: Error) => {
+      ws.on("error", (err: Error) => {
         console.log(err);
         reject(err);
       });
 
-      ws.on('message', (data: Buffer) => {
+      ws.on("message", (data: Buffer) => {
         const asString = data.toString();
-        if (this.isTracingChannelData) { console.log(asString) };
+        if (this.isTracingChannelData) {
+          console.log(asString);
+        }
         try {
           let response: ReqRespFmt = JSON.parse(asString);
           this.responseEmitter.emit(response.id, asString);
@@ -100,7 +127,7 @@ export class SQLJob {
     if (this.isTracingChannelData) console.log(content);
 
     let req: ReqRespFmt = JSON.parse(content);
-    this.socket.send(content)
+    this.socket.send(content);
     return new Promise((resolve, reject) => {
       this.responseEmitter.on(req.id, (x: string) => {
         this.responseEmitter.removeAllListeners(req.id);
@@ -146,9 +173,8 @@ export class SQLJob {
       this.dispose();
     });
 
-    const props = Object
-      .keys(this.options)
-      .map(prop => {
+    const props = Object.keys(this.options)
+      .map((prop) => {
         if (Array.isArray(this.options[prop])) {
           return `${prop}=${(this.options[prop] as string[]).join(`,`)}`;
         } else {
@@ -163,7 +189,7 @@ export class SQLJob {
       //technique: (getInstance().getConnection().qccsid === 65535 || this.options["database name"]) ? `tcp` : `cli`, //TODO: investigate why QCCSID 65535 breaks CLI and if there is any workaround
       technique: `tcp`, // TODO: DOVE does not work in cli mode
       application: `Node.js client`,
-      props: props.length > 0 ? props : undefined
+      props: props.length > 0 ? props : undefined,
     };
 
     const result = await this.send(JSON.stringify(connectionObject));
@@ -206,7 +232,7 @@ export class SQLJob {
     const query = this.query<T>(sql, opts);
     const result = await query.execute();
     await query.close();
-    
+
     if (result.error) {
       throw new Error(result.error);
     }
@@ -222,7 +248,7 @@ export class SQLJob {
   async getVersion(): Promise<VersionCheckResult> {
     const verObj = {
       id: SQLJob.getNewUniqueId(),
-      type: `getversion`
+      type: `getversion`,
     };
 
     const result = await this.send(JSON.stringify(verObj));
@@ -243,12 +269,15 @@ export class SQLJob {
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
    */
-  async explain(statement: string, type: ExplainType = ExplainType.Run): Promise<ExplainResults<any>> {
+  async explain(
+    statement: string,
+    type: ExplainType = ExplainType.Run
+  ): Promise<ExplainResults<any>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
       type: `dove`,
       sql: statement,
-      run: type === ExplainType.Run
+      run: type === ExplainType.Run,
     };
 
     const result = await this.send(JSON.stringify(explainRequest));
@@ -279,7 +308,7 @@ export class SQLJob {
   async getTraceData(): Promise<GetTraceDataResult> {
     const tracedataReqObj = {
       id: SQLJob.getNewUniqueId(),
-      type: `gettracedata`
+      type: `gettracedata`,
     };
 
     const result = await this.send(JSON.stringify(tracedataReqObj));
@@ -300,14 +329,17 @@ export class SQLJob {
    * @param level - The level of tracing to apply.
    * @returns A promise that resolves to the result of the configuration.
    */
-  async setTraceConfig(dest: ServerTraceDest, level: ServerTraceLevel): Promise<SetConfigResult> {
+  async setTraceConfig(
+    dest: ServerTraceDest,
+    level: ServerTraceLevel
+  ): Promise<SetConfigResult> {
     const reqObj = {
       id: SQLJob.getNewUniqueId(),
       type: `setconfig`,
       tracedest: dest,
-      tracelevel: level
+      tracelevel: level,
     };
-    
+
     this.isTracingChannelData = true;
 
     const result = await this.send(JSON.stringify(reqObj));
@@ -318,7 +350,8 @@ export class SQLJob {
       throw new Error(rpy.error || `Failed to set trace options on backend`);
     }
 
-    this.traceFile = (rpy.tracedest && rpy.tracedest[0] === `/` ? rpy.tracedest : undefined);
+    this.traceFile =
+      rpy.tracedest && rpy.tracedest[0] === `/` ? rpy.tracedest : undefined;
 
     return rpy;
   }
@@ -339,7 +372,10 @@ export class SQLJob {
    * @returns A boolean indicating if the job is under commit control.
    */
   underCommitControl() {
-    return this.options["transaction isolation"] && this.options["transaction isolation"] !== `none`;
+    return (
+      this.options["transaction isolation"] &&
+      this.options["transaction isolation"] !== `none`
+    );
   }
 
   /**
@@ -348,9 +384,17 @@ export class SQLJob {
    * @returns A promise that resolves to the count of pending transactions.
    */
   async getPendingTransactions() {
-    const rows = await this.query<{THECOUNT: number}>(TransactionCountQuery).execute(1);
+    const rows = await this.query<{ THECOUNT: number }>(
+      TransactionCountQuery
+    ).execute(1);
 
-    if (rows.success && rows.data && rows.data.length === 1 && rows.data[0].THECOUNT) return rows.data[0].THECOUNT;
+    if (
+      rows.success &&
+      rows.data &&
+      rows.data.length === 1 &&
+      rows.data[0].THECOUNT
+    )
+      return rows.data[0].THECOUNT;
     return 0;
   }
 
@@ -363,9 +407,14 @@ export class SQLJob {
   async endTransaction(type: TransactionEndType) {
     let query;
     switch (type) {
-      case TransactionEndType.COMMIT: query = `COMMIT`; break;
-      case TransactionEndType.ROLLBACK: query = `ROLLBACK`; break;
-      default: throw new Error(`TransactionEndType ${type} not valid`);
+      case TransactionEndType.COMMIT:
+        query = `COMMIT`;
+        break;
+      case TransactionEndType.ROLLBACK:
+        query = `ROLLBACK`;
+        break;
+      default:
+        throw new Error(`TransactionEndType ${type} not valid`);
     }
 
     return this.query<JobLogEntry>(query).execute();
@@ -409,7 +458,9 @@ export function UrlToDaemon(uri: string): DaemonServer {
   const url = new URL(uri);
 
   if (url.protocol !== `db2i:`) {
-    throw new Error(`Invalid protocol ${url.protocol}. Only db2i is supported.`);
+    throw new Error(
+      `Invalid protocol ${url.protocol}. Only db2i is supported.`
+    );
   }
 
   const requiredFields = [`username`, `password`, `hostname`];
@@ -420,13 +471,13 @@ export function UrlToDaemon(uri: string): DaemonServer {
     }
   }
 
-  const baseOfPassword = Buffer.from(url.password, 'base64').toString();
+  const baseOfPassword = Buffer.from(url.password, "base64").toString();
   const [password, pfx] = baseOfPassword.split(`:`);
 
   return {
     host: url.hostname,
     port: parseInt(url.port || `8076`),
     user: url.username,
-    password: password
+    password: password,
   };
 }
