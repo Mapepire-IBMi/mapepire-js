@@ -70,6 +70,7 @@ test("Run an Invalid SQL Query", async () => {
 
   try {
     await query.execute(10);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain("*FILE not found.");
   } finally {
@@ -85,6 +86,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
 
   try {
     await query.execute(1);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain(
       "A string parameter value with zero length was detected."
@@ -94,6 +96,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   try {
     query = await job.query<string>(666);
     await query.execute(1);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain("Query must be of type string");
   }
@@ -101,6 +104,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   try {
     query = await job.query<any>("a");
     await query.execute(1);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain("Token A was not valid.");
   }
@@ -110,6 +114,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
       "aeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSfaeriogfj304tq34projqwe'fa;sdfaSER90Q243RSDASDAFQ#4dsa12$$$YSf"
     );
     await query.execute(1);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain(
       "Token AERIOGFJ304TQ34PROJQWE was not valid."
@@ -121,6 +126,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
       "SELECT * FROM (SELECT * FROM SAMPLE.SYSCOLUMNS)"
     );
     await query.execute(0);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
@@ -128,6 +134,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   try {
     query = await job.query<any>("select * from sample.department");
     await query.execute("s");
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toEqual("rowsToFetch must be a number");
   }
@@ -135,6 +142,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   try {
     query = await job.query<any>("select * from sample.department");
     const res = await query.execute(-1);
+    throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
@@ -390,4 +398,36 @@ test("Execute directly from sql job", async () => {
   expect(res.is_done).toBe(true);
   expect(res.has_results).toBe(true);
   expect(res.update_count).toBe(-1);
+});
+
+test(`Multiple statements, one job`, async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  const resultA = await job
+    .query<any[]>(`select * from sample.department`)
+    .execute();
+  expect(resultA.is_done).toBe(true);
+
+  const resultB = await job
+    .query<any[]>(`select * from sample.employee`)
+    .execute();
+  expect(resultB.is_done).toBe(true);
+
+  await job.close();
+});
+
+test(`Multiple statements parallel, one job`, async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  const results = await Promise.all([
+    job.query<any[]>(`select * from sample.department`).execute(),
+    job.query<any[]>(`select * from sample.employee`).execute(),
+  ]);
+
+  expect(results[0].is_done).toBe(true);
+  expect(results[1].is_done).toBe(true);
+
+  await job.close();
 });
