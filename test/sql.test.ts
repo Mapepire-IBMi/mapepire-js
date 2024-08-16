@@ -165,6 +165,7 @@ test("Fetch remaining", async () => {
   let res = await query.execute();
   while (!res.is_done) {
     res = await query.fetchMore(300);
+    expect(res.data.length).not.toBe(0);
   }
   await query.close();
   await job.close();
@@ -182,6 +183,7 @@ test(
     let res = await query.execute();
     while (!res.is_done) {
       res = await query.fetchMore(300);
+      expect(res.data.length).not.toBe(0);
     }
     await query.close();
     await job.close();

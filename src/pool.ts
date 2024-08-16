@@ -59,7 +59,7 @@ export class Pool {
   }
 
   // TODO: test cases with existingJob parameter
-  async addJob(options: PoolAddOptions = {}) {
+  private async addJob(options: PoolAddOptions = {}) {
     if (options.existingJob) {
       this.cleanup();
     }
