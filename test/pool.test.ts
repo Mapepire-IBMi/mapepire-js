@@ -117,12 +117,13 @@ test("Performance test", async () => {
 
   expect(endPool2 - startPool2).toBeGreaterThan(endPool1 - startPool1);
   expect(noPoolEnd - noPoolStart).toBeGreaterThan(endPool2 - startPool2);
-}, 999999);
+}, 30000);
 
 test("Pop jobs returns free job", async () => {
   let pool = new Pool({ creds, maxSize: 5, startingSize: 5 });
   await pool.init();
   expect(pool.getActiveJobCount()).toBe(5);
+  // Initiate a bunch of jobs
   const executedPromises = [
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
@@ -156,6 +157,7 @@ test("Pool with no space, no ready job doesn't increase pool size", async () => 
   await pool.init();
   const addJobSpy = vi.spyOn(pool as any, "addJob");
   expect(pool.getActiveJobCount()).toBe(1);
+  // Initiate a bunch of jobs
   const executedPromises = [
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
