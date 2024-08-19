@@ -189,8 +189,7 @@ export class SQLJob {
     const connectionObject = {
       id: SQLJob.getNewUniqueId(),
       type: `connect`,
-      //technique: (getInstance().getConnection().qccsid === 65535 || this.options["database name"]) ? `tcp` : `cli`, //TODO: investigate why QCCSID 65535 breaks CLI and if there is any workaround
-      technique: `tcp`, // TODO: DOVE does not work in cli mode
+      technique: "tcp",
       application: `Node.js client`,
       props: props.length > 0 ? props : undefined,
     };
@@ -267,7 +266,6 @@ export class SQLJob {
 
   /**
    * Explains a SQL statement and returns the results.
-   *
    * @param statement - The SQL statement to explain.
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
@@ -422,7 +420,7 @@ export class SQLJob {
 
     return this.query<JobLogEntry>(query).execute();
   }
-  
+
   /**
    * Retrieves the unique ID assigned to this SQLJob instance.
    *
