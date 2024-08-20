@@ -73,6 +73,13 @@ export class SQLJob {
   constructor(public options: JDBCOptions = {}) {}
 
   /**
+   * Enables local tracing of the channel data.
+   */
+  enableLocalTrace() {
+    this.isTracingChannelData = true
+  }
+
+  /**
    * Establishes a WebSocket connection to the specified DB2 server.
    *
    * @param db2Server - The server details for the connection.
