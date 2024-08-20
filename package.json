@@ -1,7 +1,29 @@
 {
-  "name": "mapepire-js",
+  "name": "@ibm/mapepire-js",
+  "description": "Db2 client for node",
   "version": "0.0.1",
-  "description": "Db",
+  "license": "Apache-2.0",
+  "homepage": "https://mapepire-ibmi.github.io/guides/runtimes/nodejs/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mapepire-IBMi/mapepire-js"
+  },
+  "bugs": {
+    "url": "https://github.com/Mapepire-IBMi/mapepire-js/issues"
+  },
+  "keywords": [
+    "Db2",
+    "Db2 for i",
+    "Db2 for IBM i",
+    "DB2 client",
+    "RPG",
+    "SQL",
+    "CL",
+    "COBOL",
+    "IBMi",
+    "IBM",
+    "IBM i"
+  ],
   "bin": {
     "so": "./dist/index.js"
   },
@@ -12,11 +34,9 @@
     "test": "vitest run --bail 5",
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
-    "deploy": "npm run webpack && npm i && npm publish --access public"
+    "deploy": "npm run webpack && npm i && npm publish --access public",
+    "lint": "eslint --ext .ts"
   },
-  "keywords": [
-    "ibmi"
-  ],
   "author": "IBM",
   "devDependencies": {
     "ts-loader": "^9.4.4",
