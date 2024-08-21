@@ -32,6 +32,8 @@ const TransactionCountQuery = [
   `    (local_record_changes_pending = 'YES' or local_object_changes_pending = 'YES')`,
 ].join(`\n`);
 
+export const DEFAULT_PORT = 8076;
+
 /**
  * Represents a SQL job that manages connections and queries to a database.
  */
@@ -44,7 +46,6 @@ export class SQLJob {
   private responseEmitter: EventEmitter = new EventEmitter();
   private status: JobStatus = JobStatus.NotStarted;
 
-  private traceFile: string | undefined;
   private traceFile: string | undefined;
   private isTracingChannelData: boolean = false;
 
@@ -80,7 +81,7 @@ export class SQLJob {
   private getChannel(db2Server: DaemonServer): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(
-        `wss://${db2Server.host}:${db2Server.port}/db/`,
+        `wss://${db2Server.host}:${db2Server.port || DEFAULT_PORT}/db/`,
         {
           headers: {
             authorization: `Basic ${Buffer.from(
@@ -186,8 +187,7 @@ export class SQLJob {
     const connectionObject = {
       id: SQLJob.getNewUniqueId(),
       type: `connect`,
-      //technique: (getInstance().getConnection().qccsid === 65535 || this.options["database name"]) ? `tcp` : `cli`, //TODO: investigate why QCCSID 65535 breaks CLI and if there is any workaround
-      technique: `tcp`, // TODO: DOVE does not work in cli mode
+      technique: "tcp",
       application: `Node.js client`,
       props: props.length > 0 ? props : undefined,
     };
@@ -264,7 +264,6 @@ export class SQLJob {
 
   /**
    * Explains a SQL statement and returns the results.
-   *
    * @param statement - The SQL statement to explain.
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
@@ -419,7 +418,7 @@ export class SQLJob {
 
     return this.query<JobLogEntry>(query).execute();
   }
-  
+
   /**
    * Retrieves the unique ID assigned to this SQLJob instance.
    *

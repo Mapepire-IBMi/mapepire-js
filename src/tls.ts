@@ -1,5 +1,6 @@
 import tls from 'tls';
 import { DaemonServer } from './types';
+import { DEFAULT_PORT } from './sqlJob';
 
 /**
  * Retrieves the SSL/TLS certificate from a specified DB2 server.
@@ -13,7 +14,7 @@ import { DaemonServer } from './types';
  */
 export function getCertificate(server: DaemonServer): Promise<tls.DetailedPeerCertificate> {
   return new Promise((resolve, reject) => {
-    const socket = tls.connect(server.port, server.host, {
+    const socket = tls.connect(server.port || DEFAULT_PORT, server.host, {
       rejectUnauthorized: false
     });
 

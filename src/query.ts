@@ -32,7 +32,6 @@ export enum QueryState {
  * @template T - The type of the result returned by the query.
  */
 export class Query<T> {
-  
   /**
    * List of all global queries that are currently open.
    */
@@ -205,7 +204,6 @@ export class Query<T> {
       ? QueryState.RUN_DONE
       : QueryState.RUN_MORE_DATA_AVAILABLE;
 
-    // TODO: if autoclose, should we close here?
     if (queryResult.success !== true && !this.isCLCommand) {
       this.state = QueryState.ERROR;
 
@@ -232,8 +230,9 @@ export class Query<T> {
    * @param rowsToFetch - The number of additional rows to fetch.
    * @returns A promise that resolves to the query result.
    */
-  public async fetchMore(rowsToFetch: number = this.rowsToFetch): Promise<QueryResult<T>> {
-    //TODO: verify that the SQL job hasn't changed
+  public async fetchMore(
+    rowsToFetch: number = this.rowsToFetch
+  ): Promise<QueryResult<T>> {
     switch (this.state) {
       case QueryState.NOT_YET_RUN:
         throw new Error("Statement has not yet been run");

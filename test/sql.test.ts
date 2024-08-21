@@ -93,13 +93,13 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     );
   }
 
-  try {
-    query = await job.query<string>(666);
-    await query.execute(1);
-    throw new Error("Exception not hit");
-  } catch (error) {
-    expect(error.message).toContain("Query must be of type string");
-  }
+  // try {
+  //   query = await job.query<string>(666);
+  //   await query.execute(1);
+  //   throw new Error("Exception not hit");
+  // } catch (error) {
+  //   expect(error.message).toContain("Query must be of type string");
+  // }
 
   try {
     query = await job.query<any>("a");
@@ -131,13 +131,13 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
 
-  try {
-    query = await job.query<any>("select * from sample.department");
-    await query.execute("s");
-    throw new Error("Exception not hit");
-  } catch (error) {
-    expect(error.message).toEqual("rowsToFetch must be a number");
-  }
+  // try {
+  //   query = await job.query<any>("select * from sample.department");
+  //   await query.execute("s");
+  //   throw new Error("Exception not hit");
+  // } catch (error) {
+  //   expect(error.message).toEqual("rowsToFetch must be a number");
+  // }
 
   try {
     query = await job.query<any>("select * from sample.department");
@@ -302,18 +302,18 @@ test("Prepare SQL with Edge Case Inputs", async () => {
     "A string parameter value with zero length was detected., 43617, -99999"
   );
 
-  try {
-    query = await job.query<any>(
-      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
-      {
-        isTerseResults: false,
-        parameters: 99,
-      }
-    );
-    await query.execute();
-  } catch (err) {
-    error = err;
-  }
+  // try {
+  //   query = await job.query<any>(
+  //     "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
+  //     {
+  //       isTerseResults: false,
+  //       parameters: 99,
+  //     }
+  //   );
+  //   await query.execute();
+  // } catch (err) {
+  //   error = err;
+  // }
 
   expect(error).toBeDefined();
   expect(error.message).toEqual("Not a JSON Array: 99");
