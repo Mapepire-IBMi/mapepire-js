@@ -34,8 +34,7 @@
     "test": "vitest run --bail 5",
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
-    "deploy": "npm run webpack && npm i && npm publish --access public",
-    "lint": "eslint --ext .ts"
+    "deploy": "npm run webpack && npm i && npm publish --access public"
   },
   "author": "IBM",
   "devDependencies": {
