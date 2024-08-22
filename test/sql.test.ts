@@ -315,9 +315,9 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   //   error = err;
   // }
 
-  expect(error).toBeDefined();
-  expect(error.message).toEqual("Not a JSON Array: 99");
-
+  // expect(error).toBeDefined();
+  // expect(error.message).toEqual("Not a JSON Array: 99");
+ 
   try {
     query = await job.query<any>(
       "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
@@ -387,7 +387,7 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   await job.close();
 
   expect(error).toBeDefined();
-  expect(error.message).toEqual("Internal Error: IllegalStateException");
+  expect(error.message).toEqual("The number of parameter values set or registered does not match the number of parameters., 07001, -99999");
 });
 
 test("Execute directly from sql job", async () => {
@@ -433,3 +433,56 @@ test(`Multiple statements parallel, one job`, async () => {
 
   await job.close();
 });
+
+
+
+
+test("Batch test multiple insert/update/delete", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute<any>("drop table sample.deleteme if exists");
+  await job.execute("CREATE TABLE SAMPLE.DELETEME (name varchar(10), phone varchar(12))")
+  let query = job.query<any[]>('INSERT INTO SAMPLE.DELETEME values (?, ?)', {
+    parameters: [
+      ["SANJULA", "416 345 0879"],
+      ["TONGKUN", "647 345 0879"],
+      ["KATHERINE", "905 345 1879"],
+      ["IRFAN", "647 345 0879"],
+      ["SANJULA", "416 234 0879"],
+      ["TONGKUN", "333 345 0879"],
+      ["KATHERINE", "416 345 0000"],
+      ["IRFAN", "416 345 3333"],
+      ["SANJULA", "416 545 0879"],
+      ["TONGKUN", "456 345 0879"],
+      ["KATHERINE", "416 065 1879"],
+      ["IRFAN", "416 345 1111"],
+    ]
+  })
+  let res = await query.execute()
+  expect(res.update_count).toEqual(12)
+
+  query = job.query<any[]>('update SAMPLE.DELETEME set phone = ? where name = ?', {
+    parameters: [
+      ["789-678-6543", "SANJULA"],
+      ["222-456-1234", "TONGKUN"],
+      ["123-456-7891", "JAMES"],
+    ]
+  })
+  res = await query.execute();
+  expect(res.update_count).toEqual(6)
+
+  query = job.query<any[]>('delete from SAMPLE.DELETEME where name = ?', {
+    parameters: [
+      ["SANJULA"],
+      ["TONGKUN"],
+      ["KATHERINE"],
+      ["IRFAN"],
+    ]
+  })
+  res = await query.execute();
+  expect(res.update_count).toEqual(12)
+
+  res = await job.execute<any>("drop table sample.deleteme");
+  expect(res.success).toBe(true)
+  await job.close();
+})
