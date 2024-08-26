@@ -189,7 +189,7 @@ export interface QueryResult<T> extends ServerResponse {
   /** Data returned from the query. */
   data: T[];
 
-  /** Parameters returned from the query. */
+  /** Number of parameters in the prepared statement. */
   parameter_count?: number;
 
   /** Parameters returned from the query. */
