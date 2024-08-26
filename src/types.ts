@@ -150,6 +150,28 @@ export interface SetConfigResult extends ServerResponse {
   tracelevel: ServerTraceLevel;
 }
 
+export interface ParameterDetail {
+  type: string;
+  mode: "IN"| "OUT" | "INOUT";
+  precision: number;
+  scale?: number;
+  name: string;
+}
+
+export interface ParameterResult {
+  index: number;
+  type: string;
+  precision: number;
+  scale?: number;
+  name: string;
+
+  /** CCSID of the parameter result */
+  ccsid?: number;
+
+  /** Value is only available for OUT/INOUT */
+  value?: any;
+}
+
 /** Interface representing a standard query result. */
 export interface QueryResult<T> extends ServerResponse {
   /** Metadata about the query results. */
@@ -166,6 +188,12 @@ export interface QueryResult<T> extends ServerResponse {
   
   /** Data returned from the query. */
   data: T[];
+
+  /** Number of parameters in the prepared statement. */
+  parameter_count?: number;
+
+  /** Parameters returned from the query. */
+  output_parms?: ParameterResult[];
 }
 
 /** Interface representing a log entry from a job. */
@@ -204,13 +232,15 @@ export interface CLCommandResult extends ServerResponse {
 /** Interface representing metadata about a query. */
 export interface QueryMetaData {
   /** Number of columns returned by the query. */
-  column_count: number;
+  column_count?: number;
   
   /** Metadata for each column. */
-  columns: ColumnMetaData[];
+  columns?: ColumnMetaData[];
+  
+  parameters?: ParameterDetail[];
   
   /** Unique job identifier for the query. */
-  job: string;
+  job?: string;
 }
 
 /** Interface representing metadata for a single column in a query result. */
