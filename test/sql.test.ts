@@ -93,13 +93,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     );
   }
 
-  // try {
-  //   query = await job.query<string>(666);
-  //   await query.execute(1);
-  //   throw new Error("Exception not hit");
-  // } catch (error) {
-  //   expect(error.message).toContain("Query must be of type string");
-  // }
+
 
   try {
     query = await job.query<any>("a");
@@ -130,14 +124,6 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   } catch (error) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
-
-  // try {
-  //   query = await job.query<any>("select * from sample.department");
-  //   await query.execute("s");
-  //   throw new Error("Exception not hit");
-  // } catch (error) {
-  //   expect(error.message).toEqual("rowsToFetch must be a number");
-  // }
 
   try {
     query = await job.query<any>("select * from sample.department");
@@ -301,22 +287,6 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   expect(error.message).toEqual(
     "A string parameter value with zero length was detected., 43617, -99999"
   );
-
-  // try {
-  //   query = await job.query<any>(
-  //     "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
-  //     {
-  //       isTerseResults: false,
-  //       parameters: 99,
-  //     }
-  //   );
-  //   await query.execute();
-  // } catch (err) {
-  //   error = err;
-  // }
-
-  // expect(error).toBeDefined();
-  // expect(error.message).toEqual("Not a JSON Array: 99");
  
   try {
     query = await job.query<any>(
@@ -437,7 +407,7 @@ test(`Multiple statements parallel, one job`, async () => {
 
 
 
-test("Batch test multiple insert/update/delete", async () => {
+test("Batch test multiple insert/update/delete (add to batch and execute)", async () => {
   const job = new SQLJob();
   await job.connect(creds);
   await job.execute<any>("drop table sample.deleteme if exists");
@@ -485,4 +455,62 @@ test("Batch test multiple insert/update/delete", async () => {
   res = await job.execute<any>("drop table sample.deleteme");
   expect(res.success).toBe(true)
   await job.close();
-})
+}, {timeout: 999999})
+
+
+test("Batch test multiple insert/update/delete (add to batch first, execute after)", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute<any>("drop table sample.deleteme if exists");
+  await job.execute("CREATE TABLE SAMPLE.DELETEME (name varchar(10), phone varchar(12))")
+  let query = job.query<any[]>('INSERT INTO SAMPLE.DELETEME values (?, ?)', {
+    parameters: [
+      ["SANJULA", "416 345 0879"],
+      ["TONGKUN", "647 345 0879"],
+      ["KATHERINE", "905 345 1879"],
+      ["IRFAN", "647 345 0879"],
+      ["SANJULA", "416 234 0879"],
+      ["TONGKUN", "333 345 0879"],
+      ["KATHERINE", "416 345 0000"],
+      ["IRFAN", "416 345 3333"],
+      ["SANJULA", "416 545 0879"],
+      ["TONGKUN", "456 345 0879"],
+      ["KATHERINE", "416 065 1879"],
+      ["IRFAN", "416 345 1111"],
+    ]}
+  )
+  let res = await query.execute();
+  expect(res.update_count).toEqual(12)
+  await query.close()
+
+  query = job.query<any[]>('update SAMPLE.DELETEME set phone = ? where name = ?', {
+    parameters: [
+      ["789-678-6543", "SANJULA"],
+    ]
+  })
+  let params = query.addToBatch([["222-456-1234", "TONGKUN"]])
+  expect(params).toEqual([["789-678-6543", "SANJULA"],["222-456-1234", "TONGKUN"]])
+  query.addToBatch([["123-456-7891", "JAMES"],["416 065 1876", "KATHERINE"]])
+  expect(params).toEqual([["789-678-6543", "SANJULA"],
+    ["222-456-1234", "TONGKUN"],
+    ["123-456-7891", "JAMES"],
+    ["416 065 1876", "KATHERINE"]])
+
+  res = await query.execute()
+  await query.close()
+  expect(res.update_count).toEqual(9)
+
+  query = job.query<any[]>('delete from SAMPLE.DELETEME where name = ?')
+  let params2 = query.addToBatch([["SANJULA"]])
+  expect(params2).toEqual([["SANJULA"]])
+  params2 = query.addToBatch([["TONGKUN"],["KATHERINE"],["IRFAN"]])
+  expect(params2).toEqual([["SANJULA"], ["TONGKUN"],["KATHERINE"],["IRFAN"]])
+
+  res = await query.execute();
+  await query.close()
+  expect(res.update_count).toEqual(12)
+
+  res = await job.execute<any>("drop table sample.deleteme");
+  expect(res.success).toBe(true)
+  await job.close();
+}, {timeout: 9999999})

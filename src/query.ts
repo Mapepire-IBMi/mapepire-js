@@ -159,6 +159,31 @@ export class Query<T> {
   }
 
   /**
+   * Add sql statements to the batch only
+   *
+   * @returns The parameters for the batch
+   */
+  public addToBatch(parameters: any[]): any[] {
+    this.parameters = this.parameters ?? [];
+    if (!Array.isArray(parameters)){
+      throw new Error("Parameter 'parameters' must be a 2d array of parameters to the query");
+    } else {
+      for (const parameter of parameters){
+        if (!Array.isArray(parameter)){
+          throw new Error("Parameter 'parameters' must be a 2d array of parameters to the query");
+        }
+      }
+    }
+
+    for (const parameter of parameters){
+      this.parameters.push(parameter)
+    }
+    this.isPrepared = true;
+    return this.parameters
+  }
+
+
+  /**
    * Executes the SQL query and returns the results.
    *
    * @param rowsToFetch - The number of rows to fetch (defaults to the configured number).
