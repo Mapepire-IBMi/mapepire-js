@@ -3,7 +3,7 @@
   "description": "Db2 client for node",
   "version": "0.0.1",
   "license": "Apache-2.0",
-  "homepage": "https://mapepire-ibmi.github.io/guides/runtimes/nodejs/",
+  "homepage": "https://mapepire-ibmi.github.io/guides/usage/nodejs/",
   "repository": {
     "type": "git",
     "url": "https://github.com/Mapepire-IBMi/mapepire-js"
