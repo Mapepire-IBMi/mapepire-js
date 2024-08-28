@@ -57,7 +57,7 @@ test(`Simple pool (using pool#execute)`, async () => {
   expect(pool.getActiveJobCount()).toBeLessThanOrEqual(5);
 
   await pool.end();
-}, 1000000);
+}, {timeout: 30000});
 
 test("Starting size greater than max size", async () => {
   const pool = new Pool({ creds, maxSize: 1, startingSize: 10 });
@@ -113,7 +113,7 @@ test("Performance test", async () => {
 
   expect(endPool2 - startPool2).toBeGreaterThan(endPool1 - startPool1);
   expect(noPoolEnd - noPoolStart).toBeGreaterThan(endPool2 - startPool2);
-}, 999999);
+}, {timeout: 45000});
 
 test("Pop jobs returns free job", async () => {
   let pool = new Pool({ creds, maxSize: 5, startingSize: 5 });
