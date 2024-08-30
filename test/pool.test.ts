@@ -115,8 +115,6 @@ test("Performance test", async () => {
   const multiJobPoolTime = endPool1 - startPool1;
   const singleJobPoolTime = endPool2 - startPool2;
 
-  console.log({ multiJobPoolTime, singleJobPoolTime });
-
   // Expect singlejob to be slower than multi job
   expect(singleJobPoolTime).toBeGreaterThan(multiJobPoolTime);
 }, 30000);
