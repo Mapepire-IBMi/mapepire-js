@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { QueryOptions, QueryResult } from "./types";
+import { QueryOptions, QueryResult, ServerResponse } from "./types";
 
 /**
  * Represents the possible states of a query execution.
@@ -197,8 +197,7 @@ export class Query<T> {
       };
     }
     this.rowsToFetch = rowsToFetch;
-    let result = await this.job.send(JSON.stringify(queryObject));
-    let queryResult: QueryResult<T> = JSON.parse(result);
+    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
     this.state = queryResult.is_done
       ? QueryState.RUN_DONE
@@ -248,9 +247,8 @@ export class Query<T> {
     };
 
     this.rowsToFetch = rowsToFetch;
-    let result = await this.job.send(JSON.stringify(queryObject));
+    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
-    let queryResult: QueryResult<T> = JSON.parse(result);
     this.state = queryResult.is_done
       ? QueryState.RUN_DONE
       : QueryState.RUN_MORE_DATA_AVAILABLE;
@@ -278,7 +276,7 @@ export class Query<T> {
         type: `sqlclose`,
       };
 
-      return this.job.send(JSON.stringify(queryObject));
+      return this.job.send<ServerResponse>(queryObject);
     } else if (undefined === this.correlationId) {
       this.state = QueryState.RUN_DONE;
     }
