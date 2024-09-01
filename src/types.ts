@@ -129,6 +129,8 @@ export enum ServerTraceDest {
   IN_MEM = "IN_MEM"
 }
 
+export type BindingValue = string | number;
+
 /** Interface representing options for query execution. */
 export interface QueryOptions {
   /** Whether to return terse results. */
@@ -138,7 +140,7 @@ export interface QueryOptions {
   isClCommand?: boolean;
   
   /** Parameters for the query. */
-  parameters?: any[];
+  parameters?: BindingValue[];
 }
 
 /** Interface representing the result of a configuration set request. */

@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { DaemonServer, JDBCOptions, JobStatus, QueryOptions } from "./types";
+import { BindingValue, DaemonServer, JDBCOptions, JobStatus, QueryOptions } from "./types";
 
 /**
  * Represents the options for configuring a connection pool.
@@ -241,6 +241,14 @@ export class Pool {
   execute<T>(sql: string, opts?: QueryOptions) {
     const job = this.getJob();
     return job.execute<T>(sql, opts);
+  }
+
+  sql<T>(statementParts: TemplateStringsArray, ...parameters: BindingValue[]) {
+    const job = this.getJob();
+
+    const statement = statementParts.join(`?`);
+
+    return job.execute<T>(statement, {parameters});
   }
 
   /**
