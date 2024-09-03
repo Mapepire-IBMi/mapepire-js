@@ -15,6 +15,7 @@ import {
   ServerTraceLevel,
   SetConfigResult,
   TransactionEndType,
+  ServerRequest,
   VersionCheckResult
 } from "./types";
 
@@ -110,7 +111,7 @@ export class SQLJob {
         }
         try {
           let response: ReqRespFmt = JSON.parse(asString);
-          this.responseEmitter.emit(response.id, asString);
+          this.responseEmitter.emit(response.id, response);
         } catch (e: any) {
           console.log(`Error: ` + e);
         }
@@ -128,17 +129,15 @@ export class SQLJob {
    * @param content - The message content to send.
    * @returns A promise that resolves to the server's response.
    */
-  async send(content: string): Promise<string> {
+  async send<T>(content: ServerRequest): Promise<T> {
     if (this.isTracingChannelData) console.log(content);
 
-    let req: ReqRespFmt = JSON.parse(content);
-    this.socket.send(content);
+    this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
       this.status = JobStatus.Busy;
-      this.responseEmitter.on(req.id, (x: string) => {
-        this.responseEmitter.removeAllListeners(req.id);
-        this.status =
-          this.getRunningCount() === 0 ? JobStatus.Ready : JobStatus.Busy;
+      this.responseEmitter.on(content.id, (x: T) => {
+        this.responseEmitter.removeAllListeners(content.id);
+        this.status = this.getRunningCount() === 0 ? JobStatus.Ready : JobStatus.Busy;
         resolve(x);
       });
     });
@@ -199,9 +198,7 @@ export class SQLJob {
       props: props.length > 0 ? props : undefined,
     };
 
-    const result = await this.send(JSON.stringify(connectionObject));
-
-    const connectResult: ConnectionResult = JSON.parse(result);
+    const connectResult = await this.send<ConnectionResult>(connectionObject);
 
     if (connectResult.success === true) {
       this.status = JobStatus.Ready;
@@ -258,9 +255,7 @@ export class SQLJob {
       type: `getversion`,
     };
 
-    const result = await this.send(JSON.stringify(verObj));
-
-    const version: VersionCheckResult = JSON.parse(result);
+    const version = await this.send<VersionCheckResult>(verObj);
 
     if (version.success !== true) {
       throw new Error(version.error || `Failed to get version from backend`);
@@ -275,10 +270,10 @@ export class SQLJob {
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
    */
-  async explain(
+  async explain<T>(
     statement: string,
     type: ExplainType = ExplainType.Run
-  ): Promise<ExplainResults<any>> {
+  ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
       type: `dove`,
@@ -286,9 +281,7 @@ export class SQLJob {
       run: type === ExplainType.Run,
     };
 
-    const result = await this.send(JSON.stringify(explainRequest));
-
-    const explainResult: ExplainResults<any> = JSON.parse(result);
+    const explainResult = await this.send<ExplainResults<T>>(explainRequest);
 
     if (explainResult.success !== true) {
       throw new Error(explainResult.error || `Failed to explain.`);
@@ -317,9 +310,7 @@ export class SQLJob {
       type: `gettracedata`,
     };
 
-    const result = await this.send(JSON.stringify(tracedataReqObj));
-
-    const rpy: GetTraceDataResult = JSON.parse(result);
+    const rpy = await this.send<GetTraceDataResult>(tracedataReqObj);
 
     if (rpy.success !== true) {
       throw new Error(rpy.error || `Failed to get trace data from backend`);
@@ -348,9 +339,7 @@ export class SQLJob {
 
     this.isTracingChannelData = true;
 
-    const result = await this.send(JSON.stringify(reqObj));
-
-    const rpy: SetConfigResult = JSON.parse(result);
+    const rpy = await this.send<SetConfigResult>(reqObj);
 
     if (rpy.success !== true) {
       throw new Error(rpy.error || `Failed to set trace options on backend`);

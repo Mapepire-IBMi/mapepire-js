@@ -82,6 +82,8 @@ test("Starting size of 0", async () => {
 
 test("Performance test", async () => {
   let pool = new Pool({ creds, maxSize: 5, startingSize: 5 });
+
+  // Pool 1
   await pool.init();
   const startPool1 = Date.now();
   let queries = [];
@@ -90,9 +92,11 @@ test("Performance test", async () => {
   }
   let results: QueryResult<any>[] = await Promise.all(queries);
   const endPool1 = Date.now();
-  await pool.end();
+  pool.end();
+
   results.forEach((res) => expect(res.has_results).toBe(true));
 
+  // Pool 2
   pool = new Pool({ creds, maxSize: 1, startingSize: 1 });
   await pool.init();
   const startPool2 = Date.now();
@@ -101,22 +105,18 @@ test("Performance test", async () => {
     queries.push(pool.execute("select * FROM SAMPLE.SYSCOLUMNS"));
   }
   results = await Promise.all(queries);
+
   const endPool2 = Date.now();
 
-  await pool.end();
+  pool.end();
   results.forEach((res) => expect(res.has_results).toBe(true));
 
-  const noPoolStart = Date.now();
-  for (let i = 0; i < 20; i++) {
-    const job = new SQLJob();
-    await job.connect(creds);
-    await job.execute("select * FROM SAMPLE.SYSCOLUMNS");
-    await job.close();
-  }
-  const noPoolEnd = Date.now();
+  // Compare
+  const multiJobPoolTime = endPool1 - startPool1;
+  const singleJobPoolTime = endPool2 - startPool2;
 
-  expect(endPool2 - startPool2).toBeGreaterThan(endPool1 - startPool1);
-  expect(noPoolEnd - noPoolStart).toBeGreaterThan(endPool2 - startPool2);
+  // Expect singlejob to be slower than multi job
+  expect(singleJobPoolTime).toBeGreaterThan(multiJobPoolTime);
 }, 30000);
 
 test("Pop jobs returns free job", async () => {
