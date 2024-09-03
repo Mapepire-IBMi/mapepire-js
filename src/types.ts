@@ -77,6 +77,7 @@ export interface ServerResponse {
 
 export interface ServerRequest {
   id: string;
+  type: string;
 }
 
 /** Interface representing the result of a connection request. */
