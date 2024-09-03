@@ -75,6 +75,11 @@ export interface ServerResponse {
   sql_state: string;
 }
 
+export interface ServerRequest {
+  id: string;
+  type: string;
+}
+
 /** Interface representing the result of a connection request. */
 export interface ConnectionResult extends ServerResponse {
   /** Unique job identifier for the connection. */
