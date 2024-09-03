@@ -1,25 +1,22 @@
+import { EventEmitter } from "stream";
+import WebSocket from "ws";
+import { Query } from "./query";
 import {
-  JDBCOptions,
   ConnectionResult,
-  Rows,
-  QueryResult,
-  JobLogEntry,
-  CLCommandResult,
-  VersionCheckResult,
+  DaemonServer,
+  ExplainResults,
+  ExplainType,
   GetTraceDataResult,
+  JDBCOptions,
+  JobLogEntry,
+  JobStatus,
+  QueryOptions,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
-  QueryOptions,
-  ExplainResults,
-  DaemonServer,
-  ExplainType,
-  JobStatus,
   TransactionEndType,
+  VersionCheckResult
 } from "./types";
-import { Query } from "./query";
-import { EventEmitter } from "stream";
-import WebSocket from "ws";
 
 interface ReqRespFmt {
   id: string;
@@ -97,7 +94,7 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: db2Server.ca ? false : true, //This allows a self-signed certificate to be used
+          rejectUnauthorized: db2Server.ca ? false : !db2Server.ignoreUnauthorized, //This allows a self-signed certificate to be used
         }
       );
 
