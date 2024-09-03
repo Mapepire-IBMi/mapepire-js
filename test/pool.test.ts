@@ -59,6 +59,23 @@ test(`Simple pool (using pool#execute)`, async () => {
   await pool.end();
 });
 
+test(`Pool tagged function`, async () => {
+  const pool = new Pool({ creds, maxSize: 1, startingSize: 1 });
+  
+  await pool.init();
+
+  const baseSalary = 1000;
+
+  const result = await pool.sql`
+    select * from sample.employee where salary > ${baseSalary}
+  `;
+
+  expect(result.has_results).toBe(true);
+  expect(result.data.length).toBeGreaterThan(0);
+
+  await pool.end();
+});
+
 test("Starting size greater than max size", async () => {
   const pool = new Pool({ creds, maxSize: 1, startingSize: 10 });
   await expect(() => pool.init()).rejects.toThrowError(
