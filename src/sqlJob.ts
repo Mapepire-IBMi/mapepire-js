@@ -1,26 +1,23 @@
+import { EventEmitter } from "stream";
+import WebSocket from "ws";
+import { Query } from "./query";
 import {
-  JDBCOptions,
   ConnectionResult,
-  Rows,
-  QueryResult,
-  JobLogEntry,
-  CLCommandResult,
-  VersionCheckResult,
+  DaemonServer,
+  ExplainResults,
+  ExplainType,
   GetTraceDataResult,
+  JDBCOptions,
+  JobLogEntry,
+  JobStatus,
+  QueryOptions,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
-  QueryOptions,
-  ExplainResults,
-  DaemonServer,
-  ExplainType,
-  JobStatus,
   TransactionEndType,
   ServerRequest,
+  VersionCheckResult
 } from "./types";
-import { Query } from "./query";
-import { EventEmitter } from "stream";
-import WebSocket from "ws";
 
 interface ReqRespFmt {
   id: string;
@@ -42,17 +39,17 @@ export class SQLJob {
   /**
    * A counter to generate unique IDs for each SQLJob instance.
    */
-  private static uniqueIdCounter: number = 0;
+  protected static uniqueIdCounter: number = 0;
   private socket: WebSocket;
-  private responseEmitter: EventEmitter = new EventEmitter();
-  private status: JobStatus = JobStatus.NotStarted;
+  protected responseEmitter: EventEmitter = new EventEmitter();
+  protected status: JobStatus = JobStatus.NotStarted;
 
-  private traceFile: string | undefined;
-  private isTracingChannelData: boolean = false;
+  protected traceFile: string | undefined;
+  protected isTracingChannelData: boolean = false;
 
   //currently unused but we will inevitably need a unique ID assigned to each instance
   // since server job names can be reused in some circumstances
-  private uniqueId = SQLJob.getNewUniqueId(`sqljob`);
+  protected uniqueId = SQLJob.getNewUniqueId(`sqljob`);
 
   id: string | undefined;
 
@@ -98,7 +95,7 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: db2Server.ca ? false : true, //This allows a self-signed certificate to be used
+          rejectUnauthorized: db2Server.ca ? false : !db2Server.ignoreUnauthorized, //This allows a self-signed certificate to be used
         }
       );
 
