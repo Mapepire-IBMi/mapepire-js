@@ -270,10 +270,10 @@ export class SQLJob {
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
    */
-  async explain(
+  async explain<T>(
     statement: string,
     type: ExplainType = ExplainType.Run
-  ): Promise<ExplainResults<any>> {
+  ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
       type: `dove`,
@@ -281,7 +281,7 @@ export class SQLJob {
       run: type === ExplainType.Run,
     };
 
-    const explainResult = await this.send<ExplainResults<any>>(explainRequest);
+    const explainResult = await this.send<ExplainResults<T>>(explainRequest);
 
     if (explainResult.success !== true) {
       throw new Error(explainResult.error || `Failed to explain.`);
