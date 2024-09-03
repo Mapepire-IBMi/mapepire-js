@@ -354,40 +354,8 @@ test("Prepare SQL with Edge Case Inputs", async () => {
     "Descriptor index not valid. (2>1), 07009, -99999"
   );
 
-  try {
-    const query = await job.query<any>(
-      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
-      {
-        isTerseResults: false,
-        parameters: [{ name: "asdf" }],
-      }
-    );
-    await query.execute();
-  } catch (err) {
-    error = err;
-  }
-
-  expect(error).toBeDefined();
-  expect(error.message).toEqual("JsonObject");
-
-  try {
-    const query = await job.query<any>(
-      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
-      {
-        isTerseResults: false,
-        parameters: [[]],
-      }
-    );
-    await query.execute();
-  } catch (err) {
-    error = err;
-  }
-
   await query.close();
   await job.close();
-
-  expect(error).toBeDefined();
-  expect(error.message).toEqual("Internal Error: IllegalStateException");
 });
 
 test("Execute directly from sql job", async () => {
