@@ -21,41 +21,14 @@ export interface DaemonServer {
   ca?: string | Buffer;
 }
 
-/** Enum representing the possible statuses of a job. */
-export enum JobStatus {
-  /** The job has not started yet. */
-  NotStarted = "notStarted",
-  
-  /** The job is currently connecting to the server. */
-  Connecting = "connecting",
-  
-  /** The job is ready to process queries. */
-  Ready = "ready",
-  
-  /** The job is currently processing requests. */
-  Busy = "busy",
-  
-  /** The job has ended. */
-  Ended = "ended"
-}
+/** Type representing the possible statuses of a job. */
+export type JobStatus = "notStarted" | "connecting" | "ready" | "busy" | "ended";
 
-/** Enum representing the types of explain requests. */
-export enum ExplainType {
-  /** Run the SQL statement for explanation. */
-  Run,
-  
-  /** Do not run the SQL statement for explanation. */
-  DoNotRun
-}
+/** Type representing the types of explain requests. */
+export type ExplainType = "run" | "doNotRun";
 
-/** Enum representing the types of transaction endings. */
-export enum TransactionEndType {
-  /** Commit the transaction. */
-  COMMIT,
-  
-  /** Rollback the transaction. */
-  ROLLBACK
-}
+/** Type representing the types of transaction endings. */
+export type TransactionEndType = "commit" | "rollback";
 
 /** Interface representing a standard server response. */
 export interface ServerResponse {
@@ -110,29 +83,11 @@ export interface GetTraceDataResult extends ServerResponse {
   tracedata: string;
 }
 
-/** Enum representing the levels of server tracing. */
-export enum ServerTraceLevel {
-  /** Tracing is turned off. */
-  OFF = "OFF",
-  
-  /** All trace data is collected except datastream. */
-  ON = "ON",
-  
-  /** Only error trace data is collected. */
-  ERRORS = "ERRORS",
-  
-  /** All trace data is collected including datastream. */
-  DATASTREAM = "DATASTREAM"
-}
+/** Type representing the levels of server tracing. */
+export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 
-/** Enum representing the possible destinations for server trace data. */
-export enum ServerTraceDest {
-  /** Trace data is saved to a file. */
-  FILE = "FILE", 
-  
-  /** Trace data is kept in memory. */
-  IN_MEM = "IN_MEM"
-}
+/** Type representing the possible destinations for server trace data. */
+export type ServerTraceDest = "FILE" | "IN_MEM";
 
 export type BindingValue = string | number;
 
