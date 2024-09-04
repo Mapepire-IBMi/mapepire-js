@@ -22,6 +22,10 @@ test("Simple SQL query", async () => {
   await job.connect(creds);
   const query = await job.query<any>("select * from sample.department");
   const res = await query.execute();
+
+  const queryJob = query.getHostJob();
+  expect(queryJob.id).toBe(job.id);
+  
   await query.close();
   await job.close();
   expect(res.data.length).toBeGreaterThanOrEqual(13);

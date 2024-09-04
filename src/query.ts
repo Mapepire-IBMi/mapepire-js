@@ -283,6 +283,13 @@ export class Query<T> {
   }
 
   /**
+   * Retrieves the SQL job that the query is running under.
+   */
+  public getHostJob(): SQLJob {
+    return this.job;
+  }
+
+  /**
    * Retrieves the correlation ID of the query.
    *
    * @returns The correlation ID as a string.
