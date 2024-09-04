@@ -42,7 +42,7 @@ export class SQLJob {
   protected static uniqueIdCounter: number = 0;
   private socket: WebSocket;
   protected responseEmitter: EventEmitter = new EventEmitter();
-  protected status: JobStatus = JobStatus.NotStarted;
+  protected status: JobStatus = "notStarted";
 
   protected traceFile: string | undefined;
   protected isTracingChannelData: boolean = false;
@@ -134,10 +134,10 @@ export class SQLJob {
 
     this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
-      this.status = JobStatus.Busy;
+      this.status = "busy";
       this.responseEmitter.on(content.id, (x: T) => {
         this.responseEmitter.removeAllListeners(content.id);
-        this.status = this.getRunningCount() === 0 ? JobStatus.Ready : JobStatus.Busy;
+        this.status = this.getRunningCount() === 0 ? "ready" : "busy";
         resolve(x);
       });
     });
@@ -168,7 +168,7 @@ export class SQLJob {
    * @returns A promise that resolves to the connection result.
    */
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
-    this.status = JobStatus.Connecting;
+    this.status = "connecting";
     this.socket = await this.getChannel(db2Server);
 
     this.socket.on(`error`, (err) => {
@@ -201,10 +201,10 @@ export class SQLJob {
     const connectResult = await this.send<ConnectionResult>(connectionObject);
 
     if (connectResult.success === true) {
-      this.status = JobStatus.Ready;
+      this.status = "ready";
     } else {
       this.dispose();
-      this.status = JobStatus.NotStarted;
+      this.status = "notStarted";
       throw new Error(connectResult.error || `Failed to connect to server.`);
     }
 
@@ -272,13 +272,13 @@ export class SQLJob {
    */
   async explain<T>(
     statement: string,
-    type: ExplainType = ExplainType.Run
+    type: ExplainType = "run"
   ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
       type: `dove`,
       sql: statement,
-      run: type === ExplainType.Run,
+      run: type === "run",
     };
 
     const explainResult = await this.send<ExplainResults<T>>(explainRequest);
@@ -402,11 +402,9 @@ export class SQLJob {
   async endTransaction(type: TransactionEndType) {
     let query;
     switch (type) {
-      case TransactionEndType.COMMIT:
-        query = `COMMIT`;
-        break;
-      case TransactionEndType.ROLLBACK:
-        query = `ROLLBACK`;
+      case "commit":
+      case "rollback":
+        query = type.toUpperCase();
         break;
       default:
         throw new Error(`TransactionEndType ${type} not valid`);
@@ -438,7 +436,7 @@ export class SQLJob {
     if (this.socket) {
       this.socket.close();
     }
-    this.status = JobStatus.Ended;
+    this.status = "ended";
   }
 }
 

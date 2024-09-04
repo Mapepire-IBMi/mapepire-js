@@ -35,7 +35,7 @@ interface PoolAddOptions {
   poolIgnore?: boolean
 }
 
-const INVALID_STATES = [JobStatus.Ended, JobStatus.NotStarted];
+const INVALID_STATES: JobStatus[] = ["ended", "notStarted"];
 
 /**
  * Represents a connection pool for managing SQL jobs.
@@ -97,7 +97,7 @@ export class Pool {
   getActiveJobCount() {
     return this.jobs.filter(
       (j) =>
-        j.getStatus() === JobStatus.Busy || j.getStatus() === JobStatus.Ready
+        j.getStatus() === "busy" || j.getStatus() === "ready"
     ).length;
   }
 
@@ -129,7 +129,7 @@ export class Pool {
       this.jobs.push(newSqlJob);
     }
 
-    if (newSqlJob.getStatus() === JobStatus.NotStarted) {
+    if (newSqlJob.getStatus() === "notStarted") {
       await newSqlJob.connect(this.options.creds);
     }
 
@@ -142,7 +142,7 @@ export class Pool {
    * @returns The first ready job found, or undefined if none are ready.
    */
   private getReadyJob() {
-    return this.jobs.find((j) => j.getStatus() === JobStatus.Ready);
+    return this.jobs.find((j) => j.getStatus() === "ready");
   }
 
   /**
@@ -151,7 +151,7 @@ export class Pool {
    * @returns The index of the first ready job, or -1 if none are ready.
    */
   private getReadyJobIndex() {
-    return this.jobs.findIndex((j) => j.getStatus() === JobStatus.Ready);
+    return this.jobs.findIndex((j) => j.getStatus() === "ready");
   }
 
   /**
@@ -165,7 +165,7 @@ export class Pool {
     if (!job) {
       // This code finds a job that is busy, but has the least requests on the queue
       const busyJobs = this.jobs.filter(
-        (j) => j.getStatus() === JobStatus.Busy
+        (j) => j.getStatus() === "busy"
       );
       const freeist = busyJobs.sort(
         (a, b) => a.getRunningCount() - b.getRunningCount()
