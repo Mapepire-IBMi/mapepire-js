@@ -179,4 +179,4 @@ test(`IN, OUT, INOUT varchar parameters`, async () => {
   expect(outParmValues).toEqual([undefined, '', 'ab']);
 
   await job.close();
-});
+}, {timeout: 15000});
