@@ -2,7 +2,8 @@ import { beforeAll, expect, test, vi } from "vitest";
 import { Pool } from "../src/pool";
 import { ENV_CREDS } from "./env";
 import { SQLJob, getCertificate } from "../src";
-import { DaemonServer, JobStatus, QueryResult } from "../src/types";
+import { DaemonServer, QueryResult } from "../src/types";
+import { JobStatus } from "../src/states";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 
@@ -147,7 +148,7 @@ test("Pop jobs returns free job", async () => {
   ];
   const job = await pool.popJob();
   expect(job.getUniqueId()).toMatch(/sqljob/);
-  expect(job.getStatus()).toBe("ready");
+  expect(job.getStatus()).toBe(JobStatus.READY);
   expect(job.getRunningCount()).toBe(0);
   expect(pool.getActiveJobCount()).toBe(4);
   await Promise.all(executedPromises);
@@ -163,7 +164,7 @@ test("Pop job with pool ignore", async () => {
   // Since no job was removed from the pool, and none was added, pool size shouldn't
   // change
   const job = await pool.popJob();
-  expect(job.getStatus()).toBe("ready");
+  expect(job.getStatus()).toBe(JobStatus.READY);
   expect(pool.getActiveJobCount()).toBe(1);
   await Promise.all(executedPromises);
   await pool.end();
@@ -181,7 +182,7 @@ test("Pool with no space, no ready job doesn't increase pool size", async () => 
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
   ];
   const job = pool.getJob();
-  expect(job.getStatus()).toBe("busy");
+  expect(job.getStatus()).toBe(JobStatus.BUSY);
   expect(job.getRunningCount()).toBe(3);
   await Promise.all(executedPromises);
   expect(addJobSpy).not.toHaveBeenCalled();
@@ -196,7 +197,7 @@ test("Pool with no space but ready job returns ready job", async () => {
   const addJobSpy = vi.spyOn(pool as any, "addJob");
   const executedPromise = [pool.execute("select * FROM SAMPLE.SYSCOLUMNS")];
   const job = pool.getJob();
-  expect(job.getStatus()).toBe("ready");
+  expect(job.getStatus()).toBe(JobStatus.READY);
   expect(job.getRunningCount()).toBe(0);
   await Promise.all(executedPromise);
   expect(addJobSpy).not.toHaveBeenCalled();
@@ -218,7 +219,7 @@ test("Pool with space but no ready job, adds job to pool", async () => {
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
   ];
   const job = pool.getJob();
-  expect(job.getStatus()).toBe("busy");
+  expect(job.getStatus()).toBe(JobStatus.BUSY);
   expect(job.getRunningCount()).toBe(5);
   await Promise.all(executedPromises);
 
@@ -242,7 +243,7 @@ test("Freeist job is returned", async () => {
     pool.execute("select * FROM SAMPLE.SYSCOLUMNS"),
   ];
   const job = pool.getJob();
-  expect(job.getStatus()).toBe("busy");
+  expect(job.getStatus()).toBe(JobStatus.BUSY);
   expect(job.getRunningCount()).toBe(2);
   await Promise.all(executedPromises);
   await pool.end();

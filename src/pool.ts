@@ -1,5 +1,6 @@
 import { SQLJob } from "./sqlJob";
-import { BindingValue, DaemonServer, JDBCOptions, JobStatus, QueryOptions } from "./types";
+import { BindingValue, DaemonServer, JDBCOptions, QueryOptions } from "./types";
+import {JobStatus} from "./states";
 
 /**
  * Represents the options for configuring a connection pool.
@@ -35,7 +36,7 @@ interface PoolAddOptions {
   poolIgnore?: boolean
 }
 
-const INVALID_STATES: JobStatus[] = ["ended", "notStarted"];
+const INVALID_STATES: JobStatus[] = [JobStatus.ENDED, JobStatus.NOT_STARTED];
 
 /**
  * Represents a connection pool for managing SQL jobs.

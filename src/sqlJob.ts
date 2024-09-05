@@ -5,23 +5,18 @@ import {
   ConnectionResult,
   DaemonServer,
   ExplainResults,
-  ExplainType,
   GetTraceDataResult,
   JDBCOptions,
   JobLogEntry,
-  JobStatus,
   QueryOptions,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
-  TransactionEndType,
   ServerRequest,
-  VersionCheckResult
+  VersionCheckResult,
+  ServerResponse
 } from "./types";
-
-interface ReqRespFmt {
-  id: string;
-}
+import { ExplainType, JobStatus, TransactionEndType } from "./states";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -42,7 +37,7 @@ export class SQLJob {
   protected static uniqueIdCounter: number = 0;
   private socket: WebSocket;
   protected responseEmitter: EventEmitter = new EventEmitter();
-  protected status: JobStatus = "notStarted";
+  protected status: JobStatus = JobStatus.NOT_STARTED;
 
   protected traceFile: string | undefined;
   protected isTracingChannelData: boolean = false;
@@ -110,7 +105,7 @@ export class SQLJob {
           console.log(asString);
         }
         try {
-          let response: ReqRespFmt = JSON.parse(asString);
+          let response: ServerResponse = JSON.parse(asString);
           this.responseEmitter.emit(response.id, response);
         } catch (e: any) {
           console.log(`Error: ` + e);
@@ -134,10 +129,10 @@ export class SQLJob {
 
     this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
-      this.status = "busy";
+      this.status = JobStatus.BUSY;
       this.responseEmitter.on(content.id, (x: T) => {
         this.responseEmitter.removeAllListeners(content.id);
-        this.status = this.getRunningCount() === 0 ? "ready" : "busy";
+        this.status = this.getRunningCount() === 0 ? JobStatus.READY : JobStatus.BUSY;
         resolve(x);
       });
     });
@@ -168,7 +163,7 @@ export class SQLJob {
    * @returns A promise that resolves to the connection result.
    */
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
-    this.status = "connecting";
+    this.status = JobStatus.CONNECTING;
     this.socket = await this.getChannel(db2Server);
 
     this.socket.on(`error`, (err) => {
@@ -201,10 +196,10 @@ export class SQLJob {
     const connectResult = await this.send<ConnectionResult>(connectionObject);
 
     if (connectResult.success === true) {
-      this.status = "ready";
+      this.status = JobStatus.READY;
     } else {
       this.dispose();
-      this.status = "notStarted";
+      this.status = JobStatus.CONNECTING;
       throw new Error(connectResult.error || `Failed to connect to server.`);
     }
 
@@ -272,7 +267,7 @@ export class SQLJob {
    */
   async explain<T>(
     statement: string,
-    type: ExplainType = "run"
+    type: ExplainType = ExplainType.Run
   ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
@@ -402,8 +397,8 @@ export class SQLJob {
   async endTransaction(type: TransactionEndType) {
     let query;
     switch (type) {
-      case "commit":
-      case "rollback":
+      case TransactionEndType.COMMIT:
+      case TransactionEndType.ROLLBACK:
         query = type.toUpperCase();
         break;
       default:
@@ -436,7 +431,7 @@ export class SQLJob {
     if (this.socket) {
       this.socket.close();
     }
-    this.status = "ended";
+    this.status = JobStatus.ENDED;
   }
 }
 
