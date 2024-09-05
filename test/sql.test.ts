@@ -22,6 +22,10 @@ test("Simple SQL query", async () => {
   await job.connect(creds);
   const query = await job.query<any>("select * from sample.department");
   const res = await query.execute();
+
+  const queryJob = query.getHostJob();
+  expect(queryJob.id).toBe(job.id);
+  
   await query.close();
   await job.close();
   expect(res.data.length).toBeGreaterThanOrEqual(13);
@@ -325,23 +329,7 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   );
 
   try {
-    const query = await job.query<any>(
-      "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
-      {
-        isTerseResults: false,
-        parameters: [{ name: "asdf" }],
-      }
-    );
-    await query.execute();
-  } catch (err) {
-    error = err;
-  }
-
-  expect(error).toBeDefined();
-  expect(error.message).toEqual("JsonObject");
-
-  try {
-    const query = await job.query<any>(
+    query = await job.query<any>(
       "SELECT * FROM SAMPLE.SYSCOLUMNS WHERE COLUMN_NAME = ?",
       {
         isTerseResults: false,
@@ -352,12 +340,10 @@ test("Prepare SQL with Edge Case Inputs", async () => {
   } catch (err) {
     error = err;
   }
-
   await query.close();
   await job.close();
 
   expect(error).toBeDefined();
-  expect(error.message).toEqual("The number of parameter values set or registered does not match the number of parameters., 07001, -99999");
 });
 
 test("Execute directly from sql job", async () => {

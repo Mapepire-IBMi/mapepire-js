@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { DaemonServer, JDBCOptions, JobStatus, QueryOptions } from "./types";
+import { BindingValue, DaemonServer, JDBCOptions, JobStatus, QueryOptions } from "./types";
 
 /**
  * Represents the options for configuring a connection pool.
@@ -35,7 +35,7 @@ interface PoolAddOptions {
   poolIgnore?: boolean
 }
 
-const INVALID_STATES = [JobStatus.Ended, JobStatus.NotStarted];
+const INVALID_STATES: JobStatus[] = ["ended", "notStarted"];
 
 /**
  * Represents a connection pool for managing SQL jobs.
@@ -51,8 +51,7 @@ export class Pool {
    *
    * @param options - The options for configuring the connection pool.
    */
-  constructor(private options: PoolOptions) {
-  }
+  constructor(private options: PoolOptions) {}
 
   /**
    * Initializes the pool by creating a number of SQL jobs defined by the starting size.
@@ -62,10 +61,14 @@ export class Pool {
   init() {
     let promises: Promise<SQLJob>[] = [];
 
-    if (this.options.maxSize === 0) {
+    if (this.options.maxSize <= 0) {
       return Promise.reject("Max size must be greater than 0");
+    } else if (this.options.startingSize <= 0) {
+      return Promise.reject("Starting size must be greater than 0");
     } else if (this.options.startingSize > this.options.maxSize) {
-      return Promise.reject("Max size must be greater than starting size");
+      return Promise.reject(
+        "Max size must be greater than or equal to starting size"
+      );
     }
     for (let i = 0; i < this.options.startingSize; i++) {
       promises.push(this.addJob());
@@ -94,7 +97,7 @@ export class Pool {
   getActiveJobCount() {
     return this.jobs.filter(
       (j) =>
-        j.getStatus() === JobStatus.Busy || j.getStatus() === JobStatus.Ready
+        j.getStatus() === "busy" || j.getStatus() === "ready"
     ).length;
   }
 
@@ -126,7 +129,7 @@ export class Pool {
       this.jobs.push(newSqlJob);
     }
 
-    if (newSqlJob.getStatus() === JobStatus.NotStarted) {
+    if (newSqlJob.getStatus() === "notStarted") {
       await newSqlJob.connect(this.options.creds);
     }
 
@@ -139,7 +142,7 @@ export class Pool {
    * @returns The first ready job found, or undefined if none are ready.
    */
   private getReadyJob() {
-    return this.jobs.find((j) => j.getStatus() === JobStatus.Ready);
+    return this.jobs.find((j) => j.getStatus() === "ready");
   }
 
   /**
@@ -148,7 +151,7 @@ export class Pool {
    * @returns The index of the first ready job, or -1 if none are ready.
    */
   private getReadyJobIndex() {
-    return this.jobs.findIndex((j) => j.getStatus() === JobStatus.Ready);
+    return this.jobs.findIndex((j) => j.getStatus() === "ready");
   }
 
   /**
@@ -162,17 +165,15 @@ export class Pool {
     if (!job) {
       // This code finds a job that is busy, but has the least requests on the queue
       const busyJobs = this.jobs.filter(
-        (j) => j.getStatus() === JobStatus.Busy
+        (j) => j.getStatus() === "busy"
       );
       const freeist = busyJobs.sort(
         (a, b) => a.getRunningCount() - b.getRunningCount()
       )[0];
-
       // If this job is busy, and the pool is not full, add a new job for later
       if (this.hasSpace() && freeist.getRunningCount() > 2) {
         this.addJob();
       }
-
       return freeist;
     }
 
@@ -205,7 +206,7 @@ export class Pool {
   /**
    * Pops a job from the pool if one is ready. If no jobs are ready, it will
    * create a new job and return that. The returned job should be added back to the pool.
-   * 
+   *
    * @returns A promise that resolves to a ready job or a new job.
    */
   async popJob() {
@@ -242,10 +243,18 @@ export class Pool {
     return job.execute<T>(sql, opts);
   }
 
+  sql<T>(statementParts: TemplateStringsArray, ...parameters: BindingValue[]) {
+    const job = this.getJob();
+
+    const statement = statementParts.join(`?`);
+
+    return job.execute<T>(statement, {parameters});
+  }
+
   /**
    * Closes all jobs in the pool and releases resources.
    */
   end() {
-    this.jobs.forEach(j => j.close());
+    this.jobs.forEach((j) => j.close());
   }
 }

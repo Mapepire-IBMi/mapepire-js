@@ -1,25 +1,23 @@
+import { EventEmitter } from "stream";
+import WebSocket from "ws";
+import { Query } from "./query";
 import {
-  JDBCOptions,
   ConnectionResult,
-  Rows,
-  QueryResult,
-  JobLogEntry,
-  CLCommandResult,
-  VersionCheckResult,
+  DaemonServer,
+  ExplainResults,
+  ExplainType,
   GetTraceDataResult,
+  JDBCOptions,
+  JobLogEntry,
+  JobStatus,
+  QueryOptions,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
-  QueryOptions,
-  ExplainResults,
-  DaemonServer,
-  ExplainType,
-  JobStatus,
   TransactionEndType,
+  ServerRequest,
+  VersionCheckResult
 } from "./types";
-import { Query } from "./query";
-import { EventEmitter } from "stream";
-import WebSocket from "ws";
 
 interface ReqRespFmt {
   id: string;
@@ -41,17 +39,17 @@ export class SQLJob {
   /**
    * A counter to generate unique IDs for each SQLJob instance.
    */
-  private static uniqueIdCounter: number = 0;
+  protected static uniqueIdCounter: number = 0;
   private socket: WebSocket;
-  private responseEmitter: EventEmitter = new EventEmitter();
-  private status: JobStatus = JobStatus.NotStarted;
+  protected responseEmitter: EventEmitter = new EventEmitter();
+  protected status: JobStatus = "notStarted";
 
-  private traceFile: string | undefined;
-  private isTracingChannelData: boolean = false;
+  protected traceFile: string | undefined;
+  protected isTracingChannelData: boolean = false;
 
   //currently unused but we will inevitably need a unique ID assigned to each instance
   // since server job names can be reused in some circumstances
-  private uniqueId = SQLJob.getNewUniqueId(`sqljob`);
+  protected uniqueId = SQLJob.getNewUniqueId(`sqljob`);
 
   id: string | undefined;
 
@@ -73,6 +71,13 @@ export class SQLJob {
   constructor(public options: JDBCOptions = {}) {}
 
   /**
+   * Enables local tracing of the channel data.
+   */
+  enableLocalTrace() {
+    this.isTracingChannelData = true
+  }
+
+  /**
    * Establishes a WebSocket connection to the specified DB2 server.
    *
    * @param db2Server - The server details for the connection.
@@ -90,7 +95,7 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: db2Server.ca ? false : true, //This allows a self-signed certificate to be used
+          rejectUnauthorized: db2Server.ca ? false : !db2Server.ignoreUnauthorized, //This allows a self-signed certificate to be used
         }
       );
 
@@ -106,7 +111,7 @@ export class SQLJob {
         }
         try {
           let response: ReqRespFmt = JSON.parse(asString);
-          this.responseEmitter.emit(response.id, asString);
+          this.responseEmitter.emit(response.id, response);
         } catch (e: any) {
           console.log(`Error: ` + e);
         }
@@ -124,14 +129,15 @@ export class SQLJob {
    * @param content - The message content to send.
    * @returns A promise that resolves to the server's response.
    */
-  async send(content: string): Promise<string> {
+  async send<T>(content: ServerRequest): Promise<T> {
     if (this.isTracingChannelData) console.log(content);
 
-    let req: ReqRespFmt = JSON.parse(content);
-    this.socket.send(content);
+    this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
-      this.responseEmitter.on(req.id, (x: string) => {
-        this.responseEmitter.removeAllListeners(req.id);
+      this.status = "busy";
+      this.responseEmitter.on(content.id, (x: T) => {
+        this.responseEmitter.removeAllListeners(content.id);
+        this.status = this.getRunningCount() === 0 ? "ready" : "busy";
         resolve(x);
       });
     });
@@ -143,7 +149,7 @@ export class SQLJob {
    * @returns The current status of the job.
    */
   getStatus() {
-    return this.getRunningCount() > 0 ? JobStatus.Busy : this.status;
+    return this.status;
   }
 
   /**
@@ -162,7 +168,7 @@ export class SQLJob {
    * @returns A promise that resolves to the connection result.
    */
   async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
-    this.status = JobStatus.Connecting;
+    this.status = "connecting";
     this.socket = await this.getChannel(db2Server);
 
     this.socket.on(`error`, (err) => {
@@ -192,15 +198,13 @@ export class SQLJob {
       props: props.length > 0 ? props : undefined,
     };
 
-    const result = await this.send(JSON.stringify(connectionObject));
-
-    const connectResult: ConnectionResult = JSON.parse(result);
+    const connectResult = await this.send<ConnectionResult>(connectionObject);
 
     if (connectResult.success === true) {
-      this.status = JobStatus.Ready;
+      this.status = "ready";
     } else {
       this.dispose();
-      this.status = JobStatus.NotStarted;
+      this.status = "notStarted";
       throw new Error(connectResult.error || `Failed to connect to server.`);
     }
 
@@ -251,9 +255,7 @@ export class SQLJob {
       type: `getversion`,
     };
 
-    const result = await this.send(JSON.stringify(verObj));
-
-    const version: VersionCheckResult = JSON.parse(result);
+    const version = await this.send<VersionCheckResult>(verObj);
 
     if (version.success !== true) {
       throw new Error(version.error || `Failed to get version from backend`);
@@ -268,20 +270,18 @@ export class SQLJob {
    * @param type - The type of explain to perform (default is ExplainType.Run).
    * @returns A promise that resolves to the explain results.
    */
-  async explain(
+  async explain<T>(
     statement: string,
-    type: ExplainType = ExplainType.Run
-  ): Promise<ExplainResults<any>> {
+    type: ExplainType = "run"
+  ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),
       type: `dove`,
       sql: statement,
-      run: type === ExplainType.Run,
+      run: type === "run",
     };
 
-    const result = await this.send(JSON.stringify(explainRequest));
-
-    const explainResult: ExplainResults<any> = JSON.parse(result);
+    const explainResult = await this.send<ExplainResults<T>>(explainRequest);
 
     if (explainResult.success !== true) {
       throw new Error(explainResult.error || `Failed to explain.`);
@@ -310,9 +310,7 @@ export class SQLJob {
       type: `gettracedata`,
     };
 
-    const result = await this.send(JSON.stringify(tracedataReqObj));
-
-    const rpy: GetTraceDataResult = JSON.parse(result);
+    const rpy = await this.send<GetTraceDataResult>(tracedataReqObj);
 
     if (rpy.success !== true) {
       throw new Error(rpy.error || `Failed to get trace data from backend`);
@@ -341,9 +339,7 @@ export class SQLJob {
 
     this.isTracingChannelData = true;
 
-    const result = await this.send(JSON.stringify(reqObj));
-
-    const rpy: SetConfigResult = JSON.parse(result);
+    const rpy = await this.send<SetConfigResult>(reqObj);
 
     if (rpy.success !== true) {
       throw new Error(rpy.error || `Failed to set trace options on backend`);
@@ -406,11 +402,9 @@ export class SQLJob {
   async endTransaction(type: TransactionEndType) {
     let query;
     switch (type) {
-      case TransactionEndType.COMMIT:
-        query = `COMMIT`;
-        break;
-      case TransactionEndType.ROLLBACK:
-        query = `ROLLBACK`;
+      case "commit":
+      case "rollback":
+        query = type.toUpperCase();
         break;
       default:
         throw new Error(`TransactionEndType ${type} not valid`);
@@ -442,7 +436,7 @@ export class SQLJob {
     if (this.socket) {
       this.socket.close();
     }
-    this.status = JobStatus.Ended;
+    this.status = "ended";
   }
 }
 

@@ -1,30 +1,10 @@
 import { SQLJob } from "./sqlJob";
-import { QueryOptions, QueryResult } from "./types";
+import { QueryOptions, QueryResult, ServerResponse } from "./types";
 
 /**
  * Represents the possible states of a query execution.
  */
-export enum QueryState {
-  /**
-   * Indicates that the query has not yet been run.
-   */
-  NOT_YET_RUN = 1,
-
-  /**
-   * Indicates that the query has been executed, and more data is available for retrieval.
-   */
-  RUN_MORE_DATA_AVAILABLE = 2,
-
-  /**
-   * Indicates that the query has been successfully executed and all data has been retrieved.
-   */
-  RUN_DONE = 3,
-
-  /**
-   * Indicates that an error occurred during the query execution.
-   */
-  ERROR = 4
-}
+export type QueryState = "NOT_YET_RUN" | "RUN_MORE_DATA_AVAILABLE" | "RUN_DONE" | "ERROR";
 
 /**
  * Represents a SQL query that can be executed and managed within a SQL job.
@@ -70,7 +50,7 @@ export class Query<T> {
   /**
    * The current state of the query execution.
    */
-  private state: QueryState = QueryState.NOT_YET_RUN;
+  private state: QueryState = "NOT_YET_RUN";
 
   /**
    * Indicates if the results should be terse.
@@ -125,8 +105,8 @@ export class Query<T> {
       .filter((q) => q.job == forJob || forJob === undefined)
       .filter(
         (q) =>
-          q.getState() === QueryState.NOT_YET_RUN ||
-          q.getState() === QueryState.RUN_MORE_DATA_AVAILABLE
+          q.getState() === "NOT_YET_RUN" ||
+          q.getState() === "RUN_MORE_DATA_AVAILABLE"
       )
       .map((q) => q.correlationId);
   }
@@ -143,8 +123,8 @@ export class Query<T> {
     // any cursors that remain open, and we've been told to close
     for (const query of this.globalQueryList) {
       if (
-        query.getState() === QueryState.RUN_DONE ||
-        query.getState() === QueryState.ERROR
+        query.getState() === "RUN_DONE" ||
+        query.getState() === "ERROR"
       ) {
         closePromises.push(query.close());
       }
@@ -154,7 +134,7 @@ export class Query<T> {
 
     // Automatically remove any queries done and dusted. They're useless.
     this.globalQueryList = this.globalQueryList.filter(
-      (q) => q.getState() !== QueryState.RUN_DONE
+      (q) => q.getState() !== "RUN_DONE"
     );
   }
 
@@ -198,9 +178,9 @@ export class Query<T> {
       throw new Error("rowsToFetch must be greater than 0");
     }
     switch (this.state) {
-      case QueryState.RUN_MORE_DATA_AVAILABLE:
+      case "RUN_MORE_DATA_AVAILABLE":
         throw new Error("Statement has already been run");
-      case QueryState.RUN_DONE:
+      case "RUN_DONE":
         throw new Error("Statement has already been fully run");
     }
     let queryObject;
@@ -222,15 +202,14 @@ export class Query<T> {
       };
     }
     this.rowsToFetch = rowsToFetch;
-    let result = await this.job.send(JSON.stringify(queryObject));
-    let queryResult: QueryResult<T> = JSON.parse(result);
+    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
     this.state = queryResult.is_done
-      ? QueryState.RUN_DONE
-      : QueryState.RUN_MORE_DATA_AVAILABLE;
+      ? "RUN_DONE"
+      : "RUN_MORE_DATA_AVAILABLE";
 
     if (queryResult.success !== true && !this.isCLCommand) {
-      this.state = QueryState.ERROR;
+      this.state = "ERROR";
 
       let errorList = [
         queryResult.error,
@@ -259,9 +238,9 @@ export class Query<T> {
     rowsToFetch: number = this.rowsToFetch
   ): Promise<QueryResult<T>> {
     switch (this.state) {
-      case QueryState.NOT_YET_RUN:
+      case "NOT_YET_RUN":
         throw new Error("Statement has not yet been run");
-      case QueryState.RUN_DONE:
+      case "RUN_DONE":
         throw new Error("Statement has already been fully run");
     }
     let queryObject = {
@@ -273,15 +252,14 @@ export class Query<T> {
     };
 
     this.rowsToFetch = rowsToFetch;
-    let result = await this.job.send(JSON.stringify(queryObject));
+    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
-    let queryResult: QueryResult<T> = JSON.parse(result);
     this.state = queryResult.is_done
-      ? QueryState.RUN_DONE
-      : QueryState.RUN_MORE_DATA_AVAILABLE;
+      ? "RUN_DONE"
+      : "RUN_MORE_DATA_AVAILABLE";
 
     if (queryResult.success !== true) {
-      this.state = QueryState.ERROR;
+      this.state = "ERROR";
       throw new Error(
         queryResult.error || `Failed to run query (unknown error)`
       );
@@ -295,18 +273,25 @@ export class Query<T> {
    * @returns A promise that resolves when the query is closed.
    */
   public async close() {
-    if (this.correlationId && this.state !== QueryState.RUN_DONE) {
-      this.state = QueryState.RUN_DONE;
+    if (this.correlationId && this.state !== "RUN_DONE") {
+      this.state = "RUN_DONE";
       let queryObject = {
         id: SQLJob.getNewUniqueId(`sqlclose`),
         cont_id: this.correlationId,
         type: `sqlclose`,
       };
 
-      return this.job.send(JSON.stringify(queryObject));
+      return this.job.send<ServerResponse>(queryObject);
     } else if (undefined === this.correlationId) {
-      this.state = QueryState.RUN_DONE;
+      this.state = "RUN_DONE";
     }
+  }
+
+  /**
+   * Retrieves the SQL job that the query is running under.
+   */
+  public getHostJob(): SQLJob {
+    return this.job;
   }
 
   /**
@@ -321,7 +306,7 @@ export class Query<T> {
   /**
    * Retrieves the current state of the query.
    *
-   * @returns The current state as a QueryState.
+   * @returns The current state as a "
    */
   public getState(): QueryState {
     return this.state;
