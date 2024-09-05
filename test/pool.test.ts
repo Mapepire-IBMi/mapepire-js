@@ -136,6 +136,49 @@ test("Performance test", async () => {
   expect(singleJobPoolTime).toBeGreaterThan(multiJobPoolTime);
 }, 30000);
 
+test("Pool is faster than single job", async () => {
+  let pool = new Pool({ creds, maxSize: 5, startingSize: 5 });
+
+  // Pool 1
+  await pool.init();
+  const startPool = performance.now();
+
+  let queries = [];
+  for (let i = 0; i < 20; i++) {
+    queries.push(pool.execute("select * FROM SAMPLE.SYSCOLUMNS"));
+  }
+  let results: QueryResult<any>[] = await Promise.all(queries);
+
+  const endPool = performance.now();
+
+  pool.end();
+
+  results.forEach((res) => expect(res.has_results).toBe(true));
+
+  // SQL job
+  const sqlJob = new SQLJob();
+  await sqlJob.connect(creds);
+  const startJob = performance.now();
+  queries = [];
+  for (let i = 0; i < 20; i++) {
+    queries.push(sqlJob.execute("select * FROM SAMPLE.SYSCOLUMNS"));
+  }
+  results = await Promise.all(queries);
+
+  const endJob = performance.now();
+
+  sqlJob.close();
+
+  results.forEach((res) => expect(res.has_results).toBe(true));
+
+  // Compare
+  const multiJobPoolTime = endPool - startPool;
+  const singleJobTime = endJob - startJob;
+
+  // Expect single job to be slower than multi job pool
+  expect(singleJobTime).toBeGreaterThan(multiJobPoolTime);
+}, 30000);
+
 test("Pop jobs returns free job", async () => {
   let pool = new Pool({ creds, maxSize: 5, startingSize: 5 });
   await pool.init();
