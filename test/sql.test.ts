@@ -179,7 +179,7 @@ test(
     await job.close();
     expect(res.is_done).toEqual(true);
   },
-  { timeout: 999999 }
+  { timeout: 20000 }
 );
 
 test("Prepared Statement", async () => {
@@ -438,7 +438,7 @@ test("Batch test multiple insert/update/delete (add to batch and execute)", asyn
   res = await job.execute<any>("drop table sample.deleteme");
   expect(res.success).toBe(true)
   await job.close();
-}, {timeout: 999999})
+}, {timeout: 20000})
 
 
 test("Batch test multiple insert/update/delete (add to batch first, execute after)", async () => {
@@ -496,4 +496,4 @@ test("Batch test multiple insert/update/delete (add to batch first, execute afte
   res = await job.execute<any>("drop table sample.deleteme");
   expect(res.success).toBe(true)
   await job.close();
-}, {timeout: 9999999})
+}, {timeout: 20000})
