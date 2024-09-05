@@ -2,7 +2,7 @@
 
 mapepire-js is the pure-JS client (written in TS) for connecting to Db2 for IBM i.
 
-[Check out the documentation ⭐️](https://mapepire-ibmi.github.io/guides/runtimes/nodejs/)
+[Check out the documentation ⭐️](https://mapepire-ibmi.github.io/guides/usage/nodejs/)
 
 ### How to dev/test
 
