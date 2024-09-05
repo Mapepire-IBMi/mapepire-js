@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { QueryOptions, QueryResult, ServerResponse } from "./types";
+import { BindingValue, QueryOptions, QueryResult, ServerResponse } from "./types";
 
 /**
  * Represents the possible states of a query execution.
@@ -143,7 +143,7 @@ export class Query<T> {
    *
    * @returns The parameters for the batch
    */
-  public addToBatch(parameters: any[]): any[] {
+  public addToBatch(parameters: BindingValue[]): BindingValue[] {
     this.parameters = this.parameters ?? [];
     if (!Array.isArray(parameters)){
       throw new Error("Parameter 'parameters' must be a 2d array of parameters to the query");

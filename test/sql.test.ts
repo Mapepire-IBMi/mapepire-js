@@ -390,9 +390,6 @@ test(`Multiple statements parallel, one job`, async () => {
   await job.close();
 });
 
-
-
-
 test("Batch test multiple insert/update/delete (add to batch and execute)", async () => {
   const job = new SQLJob();
   await job.connect(creds);
