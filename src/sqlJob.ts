@@ -267,7 +267,7 @@ export class SQLJob {
    */
   async explain<T>(
     statement: string,
-    type: ExplainType = ExplainType.Run
+    type: ExplainType = ExplainType.RUN
   ): Promise<ExplainResults<T>> {
     const explainRequest = {
       id: SQLJob.getNewUniqueId(),

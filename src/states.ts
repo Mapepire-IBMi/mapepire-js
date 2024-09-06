@@ -8,8 +8,8 @@ export enum JobStatus {
 }
 
 export enum ExplainType {
-  Run = "run",
-  DoNotRun = "doNotRun",
+  RUN = "run",
+  DO_NOT_RUN = "doNotRun",
 }
 
 export enum TransactionEndType {
