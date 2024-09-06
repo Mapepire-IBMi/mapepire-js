@@ -80,7 +80,7 @@ export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 /** Type representing the possible destinations for server trace data. */
 export type ServerTraceDest = "FILE" | "IN_MEM";
 
-export type BindingValue = string | number;
+export type BindingValue = string | number | (string|number)[];
 
 /** Interface representing options for query execution. */
 export interface QueryOptions {
