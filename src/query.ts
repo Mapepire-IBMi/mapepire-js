@@ -155,9 +155,8 @@ export class Query<T> {
       }
     }
 
-    for (const parameter of parameters){
-      this.parameters.push(parameter)
-    }
+    this.parameters.push(...parameters)
+    
     this.isPrepared = true;
     return this.parameters
   }
