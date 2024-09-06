@@ -16,7 +16,7 @@ beforeAll(async () => {
   await job.connect(creds);
 
   const schemaQuery = job.query<any[]>(`create schema ${TEST_SCHEMA}`);
-  
+
   try {
     await schemaQuery.execute();
   } catch (e) {
@@ -46,13 +46,16 @@ test(`IN, OUT, INOUT number parameters`, async () => {
   await queryA.execute();
   await queryA.close();
 
-  const queryB = job.query<any[]>(`call ${TEST_SCHEMA}.procedure_test(?, ?, ?)`, {parameters: [6, 4, 0]});
+  const queryB = job.query<any[]>(
+    `call ${TEST_SCHEMA}.procedure_test(?, ?, ?)`,
+    { parameters: [6, 4, 0] }
+  );
   const result = await queryB.execute();
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map(p => p.name);
-  const inParmTypes = result.metadata.parameters.map(p => p.type);
+  const inParmNames = result.metadata.parameters.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters.map((p) => p.type);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["INTEGER", "INTEGER", "INTEGER"]);
 
@@ -64,9 +67,9 @@ test(`IN, OUT, INOUT number parameters`, async () => {
 
   expect(result.output_parms).toBeDefined();
   expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map(p => p.name);
-  const outParmTypes = result.output_parms.map(p => p.type);
-  const outParmValues = result.output_parms.map(p => p.value);
+  const outParmNames = result.output_parms.map((p) => p.name);
+  const outParmTypes = result.output_parms.map((p) => p.type);
+  const outParmValues = result.output_parms.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["INTEGER", "INTEGER", "INTEGER"]);
@@ -95,14 +98,17 @@ test(`IN, OUT, INOUT char parameters`, async () => {
   await queryA.execute();
   await queryA.close();
 
-  const queryB = job.query<any[]>(`call ${TEST_SCHEMA}.procedure_test_char(?, ?, ?)`, {parameters: ['a', 'b', '']});
+  const queryB = job.query<any[]>(
+    `call ${TEST_SCHEMA}.procedure_test_char(?, ?, ?)`,
+    { parameters: ["a", "b", ""] }
+  );
   const result = await queryB.execute();
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map(p => p.name);
-  const inParmTypes = result.metadata.parameters.map(p => p.type);
-  const inPrecisions = result.metadata.parameters.map(p => p.precision);
+  const inParmNames = result.metadata.parameters.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["CHAR", "CHAR", "CHAR"]);
   expect(inPrecisions).toEqual([5, 6, 7]);
@@ -115,20 +121,20 @@ test(`IN, OUT, INOUT char parameters`, async () => {
 
   expect(result.output_parms).toBeDefined();
   expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map(p => p.name);
-  const outParmTypes = result.output_parms.map(p => p.type);
-  const outParmPrecisions = result.output_parms.map(p => p.precision);
-  const outParmValues = result.output_parms.map(p => p.value);
+  const outParmNames = result.output_parms.map((p) => p.name);
+  const outParmTypes = result.output_parms.map((p) => p.type);
+  const outParmPrecisions = result.output_parms.map((p) => p.precision);
+  const outParmValues = result.output_parms.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["CHAR", "CHAR", "CHAR"]);
   expect(outParmPrecisions).toEqual([5, 6, 7]);
-  expect(outParmValues).toEqual([undefined, '', 'ab']);
+  expect(outParmValues).toEqual([undefined, "", "ab"]);
 
   await job.close();
 });
 
-test(`IN, OUT, INOUT varchar parameters`, async () => {
+test(`IN, OUT, INOUT varchar parameters`, { timeout: 15000 }, async () => {
   const job = new SQLJob();
   await job.connect(creds);
 
@@ -148,14 +154,17 @@ test(`IN, OUT, INOUT varchar parameters`, async () => {
   await queryA.execute();
   await queryA.close();
 
-  const queryB = job.query<any[]>(`call ${TEST_SCHEMA}.procedure_test_varchar(?, ?, ?)`, {parameters: ['a', 'b', '']});
+  const queryB = job.query<any[]>(
+    `call ${TEST_SCHEMA}.procedure_test_varchar(?, ?, ?)`,
+    { parameters: ["a", "b", ""] }
+  );
   const result = await queryB.execute();
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map(p => p.name);
-  const inParmTypes = result.metadata.parameters.map(p => p.type);
-  const inPrecisions = result.metadata.parameters.map(p => p.precision);
+  const inParmNames = result.metadata.parameters.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["VARCHAR", "VARCHAR", "VARCHAR"]);
   expect(inPrecisions).toEqual([5, 6, 7]);
@@ -168,15 +177,15 @@ test(`IN, OUT, INOUT varchar parameters`, async () => {
 
   expect(result.output_parms).toBeDefined();
   expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map(p => p.name);
-  const outParmTypes = result.output_parms.map(p => p.type);
-  const outParmPrecisions = result.output_parms.map(p => p.precision);
-  const outParmValues = result.output_parms.map(p => p.value);
+  const outParmNames = result.output_parms.map((p) => p.name);
+  const outParmTypes = result.output_parms.map((p) => p.type);
+  const outParmPrecisions = result.output_parms.map((p) => p.precision);
+  const outParmValues = result.output_parms.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["VARCHAR", "VARCHAR", "VARCHAR"]);
   expect(outParmPrecisions).toEqual([5, 6, 7]);
-  expect(outParmValues).toEqual([undefined, '', 'ab']);
+  expect(outParmValues).toEqual([undefined, "", "ab"]);
 
   await job.close();
-}, {timeout: 15000});
+});
