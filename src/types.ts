@@ -21,15 +21,6 @@ export interface DaemonServer {
   ca?: string | Buffer;
 }
 
-/** Type representing the possible statuses of a job. */
-export type JobStatus = "notStarted" | "connecting" | "ready" | "busy" | "ended";
-
-/** Type representing the types of explain requests. */
-export type ExplainType = "run" | "doNotRun";
-
-/** Type representing the types of transaction endings. */
-export type TransactionEndType = "commit" | "rollback";
-
 /** Interface representing a standard server response. */
 export interface ServerResponse {
   /** Unique identifier for the request. */
