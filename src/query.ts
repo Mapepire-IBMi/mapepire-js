@@ -145,14 +145,8 @@ export class Query<T> {
    */
   public addToBatch(parameters: BindingValue[]): BindingValue[] {
     this.parameters = this.parameters ?? [];
-    if (!Array.isArray(parameters)){
-      throw new Error("Parameter 'parameters' must be a 2d array of parameters to the query");
-    } else {
-      for (const parameter of parameters){
-        if (!Array.isArray(parameter)){
-          throw new Error("Parameter 'parameters' must be a 2d array of parameters to the query");
-        }
-      }
+    if (!Array.isArray(parameters) || !parameters.every(Array.isArray)) {
+      throw new Error("Parameter 'parameters' must be a 2D array of parameters to the query");
     }
 
     this.parameters.push(...parameters)
