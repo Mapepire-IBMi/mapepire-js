@@ -25,11 +25,10 @@ export function getCertificate(server: DaemonServer): Promise<tls.DetailedPeerCe
     });
 
     socket.once('error', (err) => {
-      let msg = err
       if (err.reason === "sslv3 alert handshake failure"){
-        msg = "sslv3 handshake failed. Please ensure server is being run with Java version >= 11."
+        err.message += `. Please ensure server is being run with Java version >= 11.`
       }
-      reject(msg);
+      reject(err);
     });
   });
 }
