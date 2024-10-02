@@ -14,47 +14,11 @@ export interface DaemonServer {
   /** The password for authentication. */
   password: string;
   
-  /** Always ignore unauthorized certificates (optional). */
-  ignoreUnauthorized?: boolean;
+  /** Reject unauthorized certificates (optional). */
+  rejectUnauthorized?: boolean;
   
   /** Certificate authority (CA) for validating the server's certificate (optional). */
   ca?: string | Buffer;
-}
-
-/** Enum representing the possible statuses of a job. */
-export enum JobStatus {
-  /** The job has not started yet. */
-  NotStarted = "notStarted",
-  
-  /** The job is currently connecting to the server. */
-  Connecting = "connecting",
-  
-  /** The job is ready to process queries. */
-  Ready = "ready",
-  
-  /** The job is currently processing requests. */
-  Busy = "busy",
-  
-  /** The job has ended. */
-  Ended = "ended"
-}
-
-/** Enum representing the types of explain requests. */
-export enum ExplainType {
-  /** Run the SQL statement for explanation. */
-  Run,
-  
-  /** Do not run the SQL statement for explanation. */
-  DoNotRun
-}
-
-/** Enum representing the types of transaction endings. */
-export enum TransactionEndType {
-  /** Commit the transaction. */
-  COMMIT,
-  
-  /** Rollback the transaction. */
-  ROLLBACK
 }
 
 /** Interface representing a standard server response. */
@@ -73,6 +37,11 @@ export interface ServerResponse {
   
   /** SQL state code. */
   sql_state: string;
+}
+
+export interface ServerRequest {
+  id: string;
+  type: string;
 }
 
 /** Interface representing the result of a connection request. */
@@ -105,29 +74,13 @@ export interface GetTraceDataResult extends ServerResponse {
   tracedata: string;
 }
 
-/** Enum representing the levels of server tracing. */
-export enum ServerTraceLevel {
-  /** Tracing is turned off. */
-  OFF = "OFF",
-  
-  /** All trace data is collected except datastream. */
-  ON = "ON",
-  
-  /** Only error trace data is collected. */
-  ERRORS = "ERRORS",
-  
-  /** All trace data is collected including datastream. */
-  DATASTREAM = "DATASTREAM"
-}
+/** Type representing the levels of server tracing. */
+export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 
-/** Enum representing the possible destinations for server trace data. */
-export enum ServerTraceDest {
-  /** Trace data is saved to a file. */
-  FILE = "FILE", 
-  
-  /** Trace data is kept in memory. */
-  IN_MEM = "IN_MEM"
-}
+/** Type representing the possible destinations for server trace data. */
+export type ServerTraceDest = "FILE" | "IN_MEM";
+
+export type BindingValue = string | number | (string|number)[];
 
 /** Interface representing options for query execution. */
 export interface QueryOptions {
@@ -138,7 +91,7 @@ export interface QueryOptions {
   isClCommand?: boolean;
   
   /** Parameters for the query. */
-  parameters?: any[];
+  parameters?: BindingValue[];
 }
 
 /** Interface representing the result of a configuration set request. */
@@ -148,6 +101,28 @@ export interface SetConfigResult extends ServerResponse {
   
   /** Level of tracing set on the server. */
   tracelevel: ServerTraceLevel;
+}
+
+export interface ParameterDetail {
+  type: string;
+  mode: "IN"| "OUT" | "INOUT";
+  precision: number;
+  scale?: number;
+  name: string;
+}
+
+export interface ParameterResult {
+  index: number;
+  type: string;
+  precision: number;
+  scale?: number;
+  name: string;
+
+  /** CCSID of the parameter result */
+  ccsid?: number;
+
+  /** Value is only available for OUT/INOUT */
+  value?: any;
 }
 
 /** Interface representing a standard query result. */
@@ -166,6 +141,12 @@ export interface QueryResult<T> extends ServerResponse {
   
   /** Data returned from the query. */
   data: T[];
+
+  /** Number of parameters in the prepared statement. */
+  parameter_count?: number;
+
+  /** Parameters returned from the query. */
+  output_parms?: ParameterResult[];
 }
 
 /** Interface representing a log entry from a job. */
@@ -204,13 +185,15 @@ export interface CLCommandResult extends ServerResponse {
 /** Interface representing metadata about a query. */
 export interface QueryMetaData {
   /** Number of columns returned by the query. */
-  column_count: number;
+  column_count?: number;
   
   /** Metadata for each column. */
-  columns: ColumnMetaData[];
+  columns?: ColumnMetaData[];
+  
+  parameters?: ParameterDetail[];
   
   /** Unique job identifier for the query. */
-  job: string;
+  job?: string;
 }
 
 /** Interface representing metadata for a single column in a query result. */
