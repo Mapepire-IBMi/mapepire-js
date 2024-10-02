@@ -80,16 +80,6 @@ export class SQLJob {
    * @returns A promise that resolves to the WebSocket instance.
    */
   private getChannel(db2Server: DaemonServer): Promise<WebSocket> {
-    // Handle the scenario that server is not configured properly with full chain certificates
-    // In this scenario, the obtained CA certificate is the server certificate, not the expected root CA certificate,
-    // So the certificate verification cannot pass, should set rejectUnauthorized to false.
-    let rejectUnauthorized = true;
-    
-    if (db2Server.ca) {
-      const x509Cert = new X509Certificate(db2Server.ca);
-      rejectUnauthorized = x509Cert.subject === x509Cert.issuer;
-    }
-
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(
         `wss://${db2Server.host}:${db2Server.port || DEFAULT_PORT}/db/`,
@@ -101,7 +91,6 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: rejectUnauthorized,
         }
       );
 
