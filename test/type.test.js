@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from "vitest";
 import { SQLJob } from "../src";
-import { getCertificate } from "../src/tls";
+import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
 
 let creds = { ...ENV_CREDS };
@@ -11,9 +11,9 @@ let invalidCreds = {
 };
 
 beforeAll(async () => {
-  const ca = await getCertificate(creds);
-  creds.ca = ca.raw;
-  invalidCreds.ca = ca.raw;
+  const ca = await getRootCertificate(creds);
+  creds.ca = ca;
+  invalidCreds.ca = ca;
 });
 
 test("Bad inputs for job.query", async () => {

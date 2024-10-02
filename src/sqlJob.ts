@@ -90,7 +90,7 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: db2Server.ca ? false : !db2Server.ignoreUnauthorized, //This allows a self-signed certificate to be used
+          rejectUnauthorized: db2Server.rejectUnauthorized
         }
       );
 

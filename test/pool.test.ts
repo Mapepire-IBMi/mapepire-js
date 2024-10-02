@@ -1,15 +1,14 @@
 import { beforeAll, expect, test, vi } from "vitest";
 import { Pool } from "../src/pool";
 import { ENV_CREDS } from "./env";
-import { SQLJob, getCertificate } from "../src";
+import { SQLJob, getRootCertificate } from "../src";
 import { DaemonServer, QueryResult } from "../src/types";
 import { JobStatus } from "../src/states";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 
 beforeAll(async () => {
-  const ca = await getCertificate(creds);
-  creds.ca = ca.raw;
+  creds.ca = await getRootCertificate(creds);
 });
 
 test(`Simple pool (using pool#execute)`, async () => {

@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from 'vitest';
 import { SQLJob } from '../src';
-import { getCertificate } from '../src/tls';
+import { getRootCertificate } from '../src/tls';
 import { DaemonServer } from '../src/types';
 import { ENV_CREDS } from './env';
 
@@ -12,9 +12,9 @@ let invalidCreds: DaemonServer = {
 };
 
 beforeAll(async () => {
-  const ca = await getCertificate(creds);
-  creds.ca = ca.raw;
-  invalidCreds.ca = ca.raw;
+  const ca = await getRootCertificate(creds);
+  creds.ca = ca;
+  invalidCreds.ca = ca;
 });
 
 test(`Connect to database`, async () => {
@@ -53,19 +53,18 @@ test('Implicit Disconnection on New Connect Request', async () => {
 });
 
 test('Allow empty CA and self-signed certificate', async () => {
-  const noCACreds: DaemonServer = { ...ENV_CREDS, ca: undefined, ignoreUnauthorized: false };
-  
-  //Connection refused because CA is empty and ignoreUnauthorized is false
-  try {
+    const noCACreds: DaemonServer = { ...ENV_CREDS, ca: undefined, rejectUnauthorized: false };
     const job = new SQLJob();
     await job.connect(noCACreds);
-  } catch (error) {
+ 
+  // Connection fails because rejectUnauthorized is true
+  try{
+    noCACreds.rejectUnauthorized = true;
+    const job = new SQLJob();
+    await job.connect(noCACreds);
+    throw new Error("Self signed certificate error not hit")
+  } catch(error){
     expect(error.message).toContain('self-signed certificate');
   }
 
-  //Connection OK because ignoreUnauthorized is true
-  noCACreds.ignoreUnauthorized = true;
-  const job = new SQLJob();
-  await job.connect(noCACreds);
-  await job.close();
 });

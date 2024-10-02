@@ -14,8 +14,8 @@ export interface DaemonServer {
   /** The password for authentication. */
   password: string;
   
-  /** Always ignore unauthorized certificates (optional). */
-  ignoreUnauthorized?: boolean;
+  /** Reject unauthorized certificates (optional). */
+  rejectUnauthorized?: boolean;
   
   /** Certificate authority (CA) for validating the server's certificate (optional). */
   ca?: string | Buffer;

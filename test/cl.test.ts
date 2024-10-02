@@ -1,14 +1,13 @@
 import { beforeAll, expect, test } from "vitest";
 import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
-import { getCertificate } from "../src/tls";
+import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 
 beforeAll(async () => {
-  const ca = await getCertificate(creds);
-  creds.ca = ca.raw;
+  creds.ca = await getRootCertificate(creds);
 });
 
 test("Run CL Command Successfully", async () => {
