@@ -20,7 +20,6 @@ import {
 import { Query } from "./query";
 import { EventEmitter } from "stream";
 import WebSocket from "ws";
-import { X509Certificate } from "crypto"
 
 interface ReqRespFmt {
   id: string;

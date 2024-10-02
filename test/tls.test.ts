@@ -30,8 +30,8 @@ test(`Self signed cert should not be trusted when ca not provided`, async () => 
   let res;
   try {
     const job = new SQLJob();
-    const res = await job.connect(creds);    
-    expect(1).toBe(2);
+    await job.connect(creds);    
+    throw new Error("Self signed certificate was trusted when it shouldn't have been");
   } catch (e) {
     expect(e.message).toEqual('self-signed certificate');
   }
