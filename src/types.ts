@@ -209,6 +209,12 @@ export interface ColumnMetaData {
   
   /** Type of the column. */
   type: string;
+
+  /** Precision/length of the column. */
+  precision: number;
+
+  /** Scale of the column. */
+  scale: number;
 }
 
 /** Type representing a collection of rows returned from a query. */
