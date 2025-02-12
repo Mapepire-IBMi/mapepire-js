@@ -188,3 +188,55 @@ test(`IN, OUT, INOUT varchar parameters`, { timeout: 15000 }, async () => {
 
   await job.close();
 });
+
+test(`IN, OUT clob parameters`, { timeout: 15000 }, async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  const queryA = job.query(`
+    create or replace procedure ${TEST_SCHEMA}.procedure_test_clob(
+      in in1 clob(1m),
+      out out1 clob(1m)
+    )
+    begin
+      set out1 = upper(in1);
+    end
+  `);
+  await queryA.execute();
+  await queryA.close();
+
+  const param = "test".repeat(262144); // Create 1MB string
+  const queryB = job.query(
+    `call ${TEST_SCHEMA}.testclob(?, ?)`,
+    { parameters: [param, ""] }
+  );
+  const result = await queryB.execute();
+  await queryB.close();
+
+  expect(result.metadata.parameters).toBeDefined();
+  const inParmNames = result.metadata.parameters.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
+  expect(inParmNames).toEqual(["IN1", "OUT1"]);
+  expect(inParmTypes).toEqual(["CLOB", "CLOB"]);
+  expect(inPrecisions).toEqual([1048576, 1048576]);
+
+  expect(result.success).toBe(true);
+  expect(result.parameter_count).toBe(2);
+  expect(result.update_count).toBe(0);
+  expect(result.has_results).toBe(false);
+  expect(result.data.length).toBe(0);
+
+  expect(result.output_parms).toBeDefined();
+  expect(result.output_parms.length).toBe(2);
+  const outParmNames = result.output_parms.map((p) => p.name);
+  const outParmTypes = result.output_parms.map((p) => p.type);
+  const outParmPrecisions = result.output_parms.map((p) => p.precision);
+  const outParmValues = result.output_parms.map((p) => p.value);
+
+  expect(outParmNames).toEqual(["IN1", "OUT1"]);
+  expect(outParmTypes).toEqual(["CLOB", "CLOB"]);
+  expect(outParmPrecisions).toEqual([1048576, 1048576]);
+  expect(outParmValues).toEqual([undefined, param.toUpperCase()]);
+
+});
