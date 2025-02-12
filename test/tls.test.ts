@@ -6,6 +6,7 @@ import { SQLJob } from '../src';
 
 
 let creds: DaemonServer = {...ENV_CREDS};
+creds.rejectUnauthorized = true;
 
 test(`Can get cert correctly`, async () => {
   const cert = await getRootCertificate(creds);
