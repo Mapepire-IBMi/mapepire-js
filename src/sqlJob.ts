@@ -130,10 +130,18 @@ export class SQLJob {
     this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
       this.status = JobStatus.BUSY;
-      this.responseEmitter.on(content.id, (x: T) => {
+      const removeListeners = () => {
         this.responseEmitter.removeAllListeners(content.id);
+        this.responseEmitter.removeAllListeners(`${content.id}_conn_fail`);
+      };
+      this.responseEmitter.on(content.id, (x: T) => {
+        removeListeners();
         this.status = this.getRunningCount() === 0 ? JobStatus.READY : JobStatus.BUSY;
         resolve(x);
+      });
+      this.responseEmitter.on(`${content.id}_conn_fail`, (error: Error) => {
+        removeListeners();
+        reject(error);
       });
     });
   }
@@ -153,7 +161,8 @@ export class SQLJob {
    * @returns The number of ongoing requests.
    */
   getRunningCount() {
-    return this.responseEmitter.eventNames().length;
+    // Note that there are 2 events per request, 1 for the response and 1 for connection failure
+    return this.responseEmitter.eventNames().length / 2;
   }
 
   /**
@@ -171,7 +180,13 @@ export class SQLJob {
       this.dispose();
     });
 
-    this.socket.on(`close`, () => {
+    this.socket.on(`close`, (code, reason) => {
+      // Notify any pending requests that the connection has failed
+      const events = this.responseEmitter.eventNames().filter(el => typeof el === "string" && el.endsWith("_conn_fail"));
+      for (const event of events) {
+        this.responseEmitter.emit(event, new Error(`Connection failed with code ${code}: ${reason}`));
+      }
+      this.responseEmitter.removeAllListeners();
       this.dispose();
     });
 
@@ -421,13 +436,14 @@ export class SQLJob {
    * Closes the SQL job and cleans up resources.
    */
   async close() {
+    this.responseEmitter.removeAllListeners();
     this.dispose();
   }
 
   /**
    * Disposes of the resources associated with the SQL job.
    */
-  dispose() {
+  private dispose() {
     if (this.socket) {
       this.socket.close();
     }
