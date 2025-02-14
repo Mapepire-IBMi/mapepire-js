@@ -239,4 +239,5 @@ test(`IN, OUT clob parameters`, { timeout: 15000 }, async () => {
   expect(outParmPrecisions).toEqual([1048576, 1048576]);
   expect(outParmValues).toEqual([undefined, param.toUpperCase()]);
 
+  await job.close();
 });
