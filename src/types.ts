@@ -37,6 +37,9 @@ export interface ServerResponse {
   
   /** SQL state code. */
   sql_state: string;
+
+  /** Execution time in millis. */
+  execution_time: number;
 }
 
 export interface ServerRequest {
