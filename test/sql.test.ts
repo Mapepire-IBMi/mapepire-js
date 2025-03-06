@@ -514,3 +514,16 @@ test(
     await job.close();
   }
 );
+
+test(
+  `Promise rejection when connection is dropped during query`,
+  { timeout: 20000 },
+  async () => {
+    const job = new SQLJob();
+    await job.connect(creds);
+    const promise = job.query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')").execute();
+    job.getSocket().terminate() // Simulate connection drop.
+    await expect(promise).rejects.toThrow("Connection failed with code 1006");
+    await job.close();
+  }
+);

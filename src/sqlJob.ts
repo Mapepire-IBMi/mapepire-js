@@ -184,7 +184,8 @@ export class SQLJob {
       // Notify any pending requests that the connection has failed
       const events = this.responseEmitter.eventNames().filter(el => typeof el === "string" && el.endsWith("_conn_fail"));
       for (const event of events) {
-        this.responseEmitter.emit(event, new Error(`Connection failed with code ${code}: ${reason}`));
+        const message = `Connection failed with code ${code}` + (reason.length > 0 ? `: ${reason.toString()}` : "");
+        this.responseEmitter.emit(event, new Error(message));
       }
       this.responseEmitter.removeAllListeners();
       this.dispose();
@@ -438,6 +439,17 @@ export class SQLJob {
   async close() {
     this.responseEmitter.removeAllListeners();
     this.dispose();
+  }
+
+  /**
+   * Retrieves the WebSocket instance associated with the SQL job.
+   * Normally the user should not access the socket directly,
+   * but this is useful for testing scenarios like unexpected socket close, etc.
+   *
+   * @returns The WebSocket instance.
+   */
+  getSocket() {
+    return this.socket;
   }
 
   /**
