@@ -207,7 +207,7 @@ test(`IN, OUT clob parameters`, { timeout: 15000 }, async () => {
 
   const param = "test".repeat(262144); // Create 1MB string
   const queryB = job.query(
-    `call ${TEST_SCHEMA}.testclob(?, ?)`,
+    `call ${TEST_SCHEMA}.procedure_test_clob(?, ?)`,
     { parameters: [param, ""] }
   );
   const result = await queryB.execute();
