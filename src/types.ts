@@ -218,6 +218,18 @@ export interface ColumnMetaData {
 
   /** Scale of the column. */
   scale: number;
+
+  /** Indicates whether the designated column is automatically numbered. */
+  autoIncrement: boolean;
+
+  /** Indicates the nullability of values in the designated column. */
+  nullable: number;
+
+  /** Indicates whether the designated column is definitely not writable. */
+  readOnly: boolean;
+
+  /** Indicates whether it is possible for a write on the designated column to succeed. */
+  writeable: boolean;
 }
 
 /** Type representing a collection of rows returned from a query. */
