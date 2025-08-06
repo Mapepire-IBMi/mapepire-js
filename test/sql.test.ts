@@ -521,9 +521,39 @@ test(
   async () => {
     const job = new SQLJob();
     await job.connect(creds);
-    const promise = job.query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')").execute();
-    job.getSocket().terminate() // Simulate connection drop.
+    const promise = job
+      .query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')")
+      .execute();
+    job.getSocket().terminate(); // Simulate connection drop.
     await expect(promise).rejects.toThrow("Connection failed with code 1006");
     await job.close();
   }
 );
+
+test('Selecting small CLOB', async () => {
+  const TABLE_NAME = 'SAMPLE.MY_CLOB_TABLE';
+  const TEST_CLOB = 'This is a small CLOB value for testing.';
+
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  await job.execute<any>(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      DESCRIPTION CLOB(5000)
+    )
+  `);
+
+  await job.execute<any>(`
+    INSERT INTO ${TABLE_NAME} (DESCRIPTION)
+    VALUES ('${TEST_CLOB}')
+  `);
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].DESCRIPTION).toBe(TEST_CLOB);
+
+  await job.close();
+});
+
