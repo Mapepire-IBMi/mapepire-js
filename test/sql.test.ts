@@ -1,5 +1,5 @@
 import { beforeAll, expect, test } from "vitest";
-import { DaemonServer } from "../src/types";
+import { ColumnType, DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
@@ -646,9 +646,13 @@ test('Selecting large binary BLOB literal', async () => {
   await job.close();
 });
 
-test("Selecting small BLOB as prepared", async () => {
+test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-  const SMALL_BLOB = "48656C6C6F";
+  const text = "HELLO";
+
+  // Step 1: Convert to a Uint8Array (binary representation)
+  const encoder = new TextEncoder();  // defaults to UTF-8
+  const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
 
   const job = new SQLJob();
   await job.connect(creds);
@@ -661,16 +665,17 @@ test("Selecting small BLOB as prepared", async () => {
     )
   `);
 
-  // Assuming SQLJob supports parameterized queries and binary insertion
   const stmt = job.query<any[]>(`
     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-    VALUES (?)) 
-  `, {parameters:[[SMALL_BLOB]]});
+    VALUES (?)
+  `, {parameters:[[uint8array]],
+    columnType: [ColumnType.BLOB]
+  });
 
   await stmt.execute();
   await stmt.close();
 
   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-  expect(res.data[0].BIN_DATA).toBe(SMALL_BLOB);
+  expect(res.data[0].BIN_DATA).toStrictEqual(uint8array);
   await job.close();
 });

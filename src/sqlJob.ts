@@ -14,7 +14,9 @@ import {
   SetConfigResult,
   ServerRequest,
   VersionCheckResult,
-  ServerResponse
+  ServerResponse,
+  QueryResult,
+  ColumnType
 } from "./types";
 import { ExplainType, JobStatus, TransactionEndType } from "./states";
 
@@ -233,7 +235,47 @@ export class SQLJob {
    * @returns A new Query instance.
    */
   query<T>(sql: string, opts?: QueryOptions): Query<T> {
+    if (opts?.columnType !== undefined){
+      for (let i = 0; i < opts?.columnType.length; i++){
+        if (opts.columnType[i] === ColumnType.BLOB){
+          for (const row of opts.parameters){
+            const base64 = Buffer.from(row[i] as Uint8Array).toString('base64');
+            row[i] = base64
+          }
+        }
+      }
+    }
     return new Query(this, sql, opts);
+  }
+
+  base64ToUint8Array(hex) {
+    let bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2){
+        const byteValue = parseInt(hex.substr(i, 2), 16)
+
+        if (isNaN(byteValue)) {
+          throw new Error("Invalid hex character found in string.");
+        }
+        bytes[i/2] = byteValue;
+    }
+    return bytes;
+}
+
+  transformResultData(result: QueryResult<any>){
+    const colMetaData: {name: string, type: string}[] = result.metadata.columns
+    const colMetaDataMap = new Map<String, String>()
+    for (const column of colMetaData){
+      colMetaDataMap.set(column.name, column.type)
+    }
+
+    for (const row of result.data) {
+      for (const col of Object.keys(row)) {
+        if (colMetaDataMap.get(col) === ColumnType.BLOB) {
+          row[col] = this.base64ToUint8Array(row[col]);
+        }
+      }
+    }
+
   }
 
   /**
@@ -246,6 +288,9 @@ export class SQLJob {
   async execute<T>(sql: string, opts?: QueryOptions) {
     const query = this.query<T>(sql, opts);
     const result = await query.execute();
+    if (result.has_results){
+      this.transformResultData(result);
+    }
     await query.close();
 
     if (result.error) {

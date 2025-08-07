@@ -83,7 +83,28 @@ export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 /** Type representing the possible destinations for server trace data. */
 export type ServerTraceDest = "FILE" | "IN_MEM";
 
-export type BindingValue = string | number | (string|number)[];
+export type BindingValue = ( string | number | Uint8Array) [];
+
+export enum ColumnType {
+  SMALLINT = "SMALLINT",        // 2-byte integer
+  INTEGER = "INTEGER",          // 4-byte integer
+  BIGINT = "BIGINT",            // 8-byte integer
+  DECIMAL = "DECIMAL",          // Packed decimal (NUMERIC)
+  FLOAT = "FLOAT",              // Approximate float
+  REAL = "REAL",                // 4-byte float
+  DOUBLE = "DOUBLE",            // 8-byte float
+  CHAR = "CHAR",                // Fixed-length string
+  VARCHAR = "VARCHAR",          // Variable-length string
+  CLOB = "CLOB",                // Character large object
+  BLOB = "BLOB",                // Binary large object
+  DBCLOB = "DBCLOB",            // Double-byte CLOB
+  DATE = "DATE",                // ISO date
+  TIME = "TIME",                // ISO time
+  TIMESTAMP = "TIMESTAMP",      // ISO timestamp
+  BINARY = "BINARY",            // Fixed-length binary
+  VARBINARY = "VARBINARY",      // Variable-length binary
+  BOOLEAN = "BOOLEAN",          // BOOLEAN type
+}
 
 /** Interface representing options for query execution. */
 export interface QueryOptions {
@@ -95,6 +116,9 @@ export interface QueryOptions {
   
   /** Parameters for the query. */
   parameters?: BindingValue[];
+
+  /** Represent the type of each column. If not specified, assume varchar. */
+  columnType?: ColumnType[];
 }
 
 /** Interface representing the result of a configuration set request. */

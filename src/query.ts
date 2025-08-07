@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { BindingValue, QueryOptions, QueryResult, ServerResponse } from "./types";
+import { BindingValue, ColumnType, QueryOptions, QueryResult, ServerResponse } from "./types";
 
 /**
  * Represents the possible states of a query execution.
@@ -38,6 +38,11 @@ export class Query<T> {
   private parameters: any[] | undefined;
 
   /**
+   * The column types of the parameters.
+   */
+  private columnTypes: ColumnType[] | undefined;
+
+  /**
    * The number of rows to fetch in each execution.
    */
   private rowsToFetch: number = 100;
@@ -67,7 +72,7 @@ export class Query<T> {
   constructor(
     private job: SQLJob,
     query: string,
-    opts: QueryOptions = { isClCommand: false, parameters: undefined }
+    opts: QueryOptions = { isClCommand: false, parameters: undefined, columnType: undefined }
   ) {
     if (typeof query !== "string") {
       throw new TypeError("Query must be of type string");
@@ -75,6 +80,7 @@ export class Query<T> {
     this.job = job;
     this.isPrepared = undefined !== opts.parameters;
     this.parameters = opts.parameters;
+    this.columnTypes = opts.columnType;
     this.sql = query;
     this.isCLCommand = opts.isClCommand;
     this.isTerseResults = opts.isTerseResults;
@@ -192,6 +198,7 @@ export class Query<T> {
         terse: this.isTerseResults,
         rows: rowsToFetch,
         parameters: this.parameters,
+        columnTypes: this.columnTypes
       };
     }
     this.rowsToFetch = rowsToFetch;
