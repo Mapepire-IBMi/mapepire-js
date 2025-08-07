@@ -530,7 +530,7 @@ test(
   }
 );
 
-test('Selecting small CLOB', async () => {
+test('Selecting small CLOB literal', async () => {
   const TABLE_NAME = 'SAMPLE.MY_CLOB_TABLE';
   const TEST_CLOB = 'This is a small CLOB value for testing.';
 
@@ -557,3 +557,120 @@ test('Selecting small CLOB', async () => {
   await job.close();
 });
 
+test('Selecting long multi-line CLOB literal', {timeout:999999}, async () => {
+  const TABLE_NAME = 'SAMPLE.MY_LONG_CLOB_TABLE';
+  const LONG_CLOB = `
+    This is a much longer CLOB value.
+    It spans multiple lines and includes special characters like:
+    "quotes", newlines \n, and even some unicode like ❤️ or 中文字符.
+    The goal is to test whether long textual content is preserved.
+  `.trim();
+
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      CONTENT CLOB(10000) CCSID 1208
+    )
+  `);
+
+  await job.execute(`
+    INSERT INTO ${TABLE_NAME} (CONTENT)
+    VALUES ('${LONG_CLOB}')
+  `);
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].CONTENT.trim()).toBe(LONG_CLOB);
+
+  await job.close();
+});
+
+test("Selecting small BLOB literal", async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const SMALL_BLOB = "48656C6C6F";
+
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1000)
+    )
+  `);
+
+  // Assuming SQLJob supports parameterized queries and binary insertion
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (BLOB(X'${SMALL_BLOB}')) 
+  `);
+
+  await stmt.execute();
+  await stmt.close();
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA).toBe(SMALL_BLOB);
+  await job.close();
+});
+
+test('Selecting large binary BLOB literal', async () => {
+  const TABLE_NAME = 'SAMPLE.MY_LARGE_BLOB_TABLE';
+  const LARGE_BLOB = Buffer.alloc(1024 * 1, 0xAB).toString(); // 512KB of 0xAB
+
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1M)
+    )
+  `);
+
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES ('${LARGE_BLOB}')
+  `);
+
+  await stmt.execute();
+  await stmt.close();
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA.length).toBe(LARGE_BLOB.length);
+  expect(res.data[0].BIN_DATA.slice(0, 10).equals(LARGE_BLOB.slice(0, 10))).toBe(true);
+  await job.close();
+});
+
+test("Selecting small BLOB as prepared", async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const SMALL_BLOB = "48656C6C6F";
+
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1000)
+    )
+  `);
+
+  // Assuming SQLJob supports parameterized queries and binary insertion
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (?)) 
+  `, {parameters:[[SMALL_BLOB]]});
+
+  await stmt.execute();
+  await stmt.close();
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA).toBe(SMALL_BLOB);
+  await job.close();
+});
