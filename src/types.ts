@@ -83,7 +83,7 @@ export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 /** Type representing the possible destinations for server trace data. */
 export type ServerTraceDest = "FILE" | "IN_MEM";
 
-export type BindingValue = ( string | number | Uint8Array) [];
+export type BindingValue = string | number | Uint8Array | (string | number | Uint8Array)[];
 
 export enum ColumnType {
   SMALLINT = "SMALLINT",        // 2-byte integer

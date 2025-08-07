@@ -590,7 +590,8 @@ test('Selecting long multi-line CLOB literal', {timeout:999999}, async () => {
 
 test("Selecting small BLOB literal", async () => {
   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-  const SMALL_BLOB = "48656C6C6F";
+  const SMALL_BLOB_HEX_BYTES = "48656C6C6F";
+  const expectedBinary = new Uint8Array([72, 101, 108, 108, 111]);
 
   const job = new SQLJob();
   await job.connect(creds);
@@ -606,20 +607,21 @@ test("Selecting small BLOB literal", async () => {
   // Assuming SQLJob supports parameterized queries and binary insertion
   const stmt = job.query<any[]>(`
     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-    VALUES (BLOB(X'${SMALL_BLOB}')) 
+    VALUES (BLOB(X'${SMALL_BLOB_HEX_BYTES}')) 
   `);
 
   await stmt.execute();
   await stmt.close();
 
   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-  expect(res.data[0].BIN_DATA).toBe(SMALL_BLOB);
+  expect(res.data[0].BIN_DATA).toStrictEqual(expectedBinary);
   await job.close();
 });
 
 test('Selecting large binary BLOB literal', async () => {
   const TABLE_NAME = 'SAMPLE.MY_LARGE_BLOB_TABLE';
-  const LARGE_BLOB = Buffer.alloc(1024 * 1, 0xAB).toString(); // 512KB of 0xAB
+  const LARGE_BLOB_HEX = "AB".repeat(1000);
+  const LARGE_BLOB_BYTES = new Uint8Array([171, 171, 171, 171, 171, 171, 171, 171, 171, 171]);
 
   const job = new SQLJob();
   await job.connect(creds);
@@ -634,15 +636,15 @@ test('Selecting large binary BLOB literal', async () => {
 
   const stmt = job.query<any[]>(`
     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-    VALUES ('${LARGE_BLOB}')
+    VALUES (BLOB(X'${LARGE_BLOB_HEX}'))
   `);
 
   await stmt.execute();
   await stmt.close();
 
   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-  expect(res.data[0].BIN_DATA.length).toBe(LARGE_BLOB.length);
-  expect(res.data[0].BIN_DATA.slice(0, 10).equals(LARGE_BLOB.slice(0, 10))).toBe(true);
+  expect(res.data[0].BIN_DATA.length).toBe(1000);
+  expect(res.data[0].BIN_DATA.slice(0, 10)).toStrictEqual(LARGE_BLOB_BYTES)
   await job.close();
 });
 
