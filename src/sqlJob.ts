@@ -60,6 +60,10 @@ export class SQLJob {
     return prefix + ++SQLJob.uniqueIdCounter;
   }
 
+  public static getUniqueBlobId(): number {
+    return Math.floor(Math.random() * 2 ** 16)
+  }
+
   /**
    * Constructs a new SQLJob instance with the specified options.
    *
@@ -92,7 +96,8 @@ export class SQLJob {
           },
           ca: db2Server.ca,
           timeout: 5000,
-          rejectUnauthorized: db2Server.rejectUnauthorized
+          rejectUnauthorized: db2Server.rejectUnauthorized,
+          maxPayload: 500 * 1024 * 1024
         }
       );
 
@@ -126,27 +131,43 @@ export class SQLJob {
    * @param content - The message content to send.
    * @returns A promise that resolves to the server's response.
    */
-  async send<T>(content: ServerRequest): Promise<T> {
-    if (this.isTracingChannelData) console.log(content);
+  async send<T>(content: ServerRequest | Uint8Array): Promise<T> {
+    if ( content instanceof Uint8Array){
+      const binaryData = Buffer.from(content)
+      this.socket.send(binaryData, { binary: true }, (err) => {
+  if (err) {
+    console.error("Send error:", err);
+  } else {
+    console.log("Binary frame sent");
+  }});
+      
+    } else {
 
-    this.socket.send(JSON.stringify(content));
-    return new Promise((resolve, reject) => {
-      this.status = JobStatus.BUSY;
-      const removeListeners = () => {
-        this.responseEmitter.removeAllListeners(content.id);
-        this.responseEmitter.removeAllListeners(`${content.id}_conn_fail`);
-      };
-      this.responseEmitter.on(content.id, (x: T) => {
-        removeListeners();
-        this.status = this.getRunningCount() === 0 ? JobStatus.READY : JobStatus.BUSY;
-        resolve(x);
+      if (this.isTracingChannelData) console.log(content);
+  
+      if (content.type === "blob"){
+        this.socket.send(content.blob);
+      } else {
+        this.socket.send(JSON.stringify(content));
+      }
+      return new Promise((resolve, reject) => {
+        this.status = JobStatus.BUSY;
+        const removeListeners = () => {
+          this.responseEmitter.removeAllListeners(content.id);
+          this.responseEmitter.removeAllListeners(`${content.id}_conn_fail`);
+        };
+        this.responseEmitter.on(content.id, (x: T) => {
+          removeListeners();
+          this.status = this.getRunningCount() === 0 ? JobStatus.READY : JobStatus.BUSY;
+          resolve(x);
+        });
+        this.responseEmitter.on(`${content.id}_conn_fail`, (error: Error) => {
+          removeListeners();
+          reject(error);
+        });
       });
-      this.responseEmitter.on(`${content.id}_conn_fail`, (error: Error) => {
-        removeListeners();
-        reject(error);
-      });
-    });
-  }
+    }
+    }
 
   /**
    * Retrieves the current status of the job.
@@ -235,16 +256,16 @@ export class SQLJob {
    * @returns A new Query instance.
    */
   query<T>(sql: string, opts?: QueryOptions): Query<T> {
-    if (opts?.columnType !== undefined){
-      for (let i = 0; i < opts?.columnType.length; i++){
-        if (opts.columnType[i] === ColumnType.BLOB){
-          for (const row of opts.parameters){
-            const base64 = Buffer.from(row[i] as Uint8Array).toString('base64');
-            row[i] = base64
-          }
-        }
-      }
-    }
+    // if (opts?.columnType !== undefined){
+    //   for (let i = 0; i < opts?.columnType.length; i++){
+    //     if (opts.columnType[i] === ColumnType.BLOB){
+    //       for (const row of opts.parameters){
+    //         const base64 = Buffer.from(row[i] as Uint8Array).toString('base64');
+    //         row[i] = base64
+    //       }
+    //     }
+    //   }
+    // }
     return new Query(this, sql, opts);
   }
 

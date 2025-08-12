@@ -52,6 +52,8 @@ export class Query<T> {
    */
   private isCLCommand: boolean;
 
+  private isBlobCommand: boolean;
+
   /**
    * The current state of the query execution.
    */
@@ -83,6 +85,7 @@ export class Query<T> {
     this.columnTypes = opts.columnType;
     this.sql = query;
     this.isCLCommand = opts.isClCommand;
+    this.isBlobCommand = opts.columnType?.some(columnType => columnType === ColumnType.BLOB)
     this.isTerseResults = opts.isTerseResults;
 
     Query.globalQueryList.push(this);
@@ -161,6 +164,67 @@ export class Query<T> {
     return this.parameters
   }
 
+private concatUint8Arrays(...arrays) {
+  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  
+  return result;
+}
+
+private getNotBlobParams():(string | number)[] {
+  return this.parameters.map(parameter => 
+          parameter.filter(data => !(data instanceof Uint8Array)))
+}
+
+
+  private async sendBlob(blobId: number, blob: Uint8Array){
+let hexString = blobId.toString(16);
+if (hexString.length < 4) {
+  hexString = hexString.padStart(4, '0');
+}
+
+const buffer = new ArrayBuffer(2); // Allocate 2 bytes
+const uint8array = new Uint8Array(buffer); // Create a Uint8Array view on the buffer
+
+// Parse the hex pairs and assign to Uint8Array
+uint8array[0] = parseInt(hexString.substring(0, 2), 16);
+uint8array[1] = parseInt(hexString.substring(2, 4), 16);
+
+    const lenBuffer = new ArrayBuffer(4);         // Allocate 2 bytes
+    const lenView = new DataView(lenBuffer);     
+    lenView.setUint32(0, blob.length, false)
+    const lenUint8array = new Uint8Array(lenBuffer); // Create Uint8Array to view raw bytes
+
+    const blobFrame = this.concatUint8Arrays(uint8array, lenUint8array, blob)
+    // const reqBody = {
+    //     id: SQLJob.getNewUniqueId(`query`),
+    //     type: `blob`,
+    //     blob: blobFrame
+    // }
+
+
+    const queryResult = await this.job.send<QueryResult<T>>(blobFrame);
+
+
+
+
+      // const queryObject = {
+      //   id: SQLJob.getNewUniqueId(`query`),
+      //   type: this.isPrepared ? `prepare_sql_execute` : `sql`,
+      //   sql: this.sql,
+      //   terse: this.isTerseResults,
+      //   rows: rowsToFetch,
+      //   parameters: this.parameters,
+      //   columnTypes: this.columnTypes
+      // };
+  }
+
 
   /**
    * Executes the SQL query and returns the results.
@@ -183,6 +247,7 @@ export class Query<T> {
         throw new Error("Statement has already been fully run");
     }
     let queryObject;
+    let blobId;
     if (this.isCLCommand) {
       queryObject = {
         id: SQLJob.getNewUniqueId(`clcommand`),
@@ -190,7 +255,17 @@ export class Query<T> {
         terse: this.isTerseResults,
         cmd: this.sql,
       };
-    } else {
+    } else if (this.isBlobCommand){
+      blobId = SQLJob.getUniqueBlobId()
+      queryObject = {
+        id: blobId,
+        type: `prepare_sql`,
+        terse: this.isTerseResults,
+        sql: this.sql,
+        parameters: this.getNotBlobParams()
+      };
+    }
+    else {
       queryObject = {
         id: SQLJob.getNewUniqueId(`query`),
         type: this.isPrepared ? `prepare_sql_execute` : `sql`,
@@ -203,6 +278,10 @@ export class Query<T> {
     }
     this.rowsToFetch = rowsToFetch;
     let queryResult = await this.job.send<QueryResult<T>>(queryObject);
+
+    if (this.columnTypes?.includes(ColumnType.BLOB)){
+      await this.sendBlob(blobId, this.parameters[0][0])
+    }
 
     this.state = queryResult.is_done
       ? "RUN_DONE"
@@ -221,7 +300,7 @@ export class Query<T> {
         errorList.push(`Failed to run query (unknown error)`);
       }
 
-      throw new Error(errorList.join(", "));
+      // throw new Error(errorList.join(", "));
     }
     this.correlationId = queryResult.id;
 
