@@ -106,17 +106,22 @@ export class SQLJob {
         reject(err);
       });
 
-      ws.on("message", (data: Buffer) => {
-        const asString = data.toString();
-        if (this.isTracingChannelData) {
-          console.log(asString);
-        }
-        try {
-          let response: ServerResponse = JSON.parse(asString);
-          this.responseEmitter.emit(response.id, response);
-        } catch (e: any) {
-          console.log(`Error: ` + e);
-        }
+      ws.on("message", (data: Buffer, isBinary: boolean) => {
+        if (isBinary) {
+          console.log("binary frame")
+          console.log("Received data: ", data.slice(0, 20))
+          } else {
+            const asString = data.toString();
+            if (this.isTracingChannelData) {
+              console.log(asString);
+            }
+            try {
+              let response: ServerResponse = JSON.parse(asString);
+              this.responseEmitter.emit(response.id, response);
+            } catch (e: any) {
+              console.log(`Error: ` + e);
+            }
+          }
       });
 
       ws.once(`open`, () => {
