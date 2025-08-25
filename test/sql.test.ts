@@ -546,284 +546,279 @@ beforeAll(async () => {
 //   }
 // );
 
-// test('Selecting small CLOB literal', async () => {
-//   const TABLE_NAME = 'SAMPLE.MY_CLOB_TABLE';
-//   const TEST_CLOB = 'This is a small CLOB value for testing.';
+test('Selecting small CLOB literal', async () => {
+  const TABLE_NAME = 'SAMPLE.MY_CLOB_TABLE';
+  const TEST_CLOB = 'This is a small CLOB value for testing.';
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
+  const job = new SQLJob();
+  await job.connect(creds);
 
-//   await job.execute<any>(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  await job.execute<any>(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       DESCRIPTION CLOB(5000)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      DESCRIPTION CLOB(5000)
+    )
+  `);
 
-//   await job.execute<any>(`
-//     INSERT INTO ${TABLE_NAME} (DESCRIPTION)
-//     VALUES ('${TEST_CLOB}')
-//   `);
+  await job.execute<any>(`
+    INSERT INTO ${TABLE_NAME} (DESCRIPTION)
+    VALUES ('${TEST_CLOB}')
+  `);
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].DESCRIPTION).toBe(TEST_CLOB);
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].DESCRIPTION).toBe(TEST_CLOB);
 
-//   await job.close();
-// });
+  await job.close();
+});
 
-// test('Selecting long multi-line CLOB literal', {timeout:999999}, async () => {
-//   const TABLE_NAME = 'SAMPLE.MY_LONG_CLOB_TABLE';
-//   const LONG_CLOB = `
-//     This is a much longer CLOB value.
-//     It spans multiple lines and includes special characters like:
-//     "quotes", newlines \n, and even some unicode like ❤️ or 中文字符.
-//     The goal is to test whether long textual content is preserved.
-//   `.trim();
+test('Selecting long multi-line CLOB literal', {timeout:999999}, async () => {
+  const TABLE_NAME = 'SAMPLE.MY_LONG_CLOB_TABLE';
+  const LONG_CLOB = `
+    This is a much longer CLOB value.
+    It spans multiple lines and includes special characters like:
+    "quotes", newlines \n, and even some unicode like ❤️ or 中文字符.
+    The goal is to test whether long textual content is preserved.
+  `.trim();
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       CONTENT CLOB(10000) CCSID 1208
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      CONTENT CLOB(10000) CCSID 1208
+    )
+  `);
 
-//   await job.execute(`
-//     INSERT INTO ${TABLE_NAME} (CONTENT)
-//     VALUES ('${LONG_CLOB}')
-//   `);
+  await job.execute(`
+    INSERT INTO ${TABLE_NAME} (CONTENT)
+    VALUES ('${LONG_CLOB}')
+  `);
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].CONTENT.trim()).toBe(LONG_CLOB);
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].CONTENT.trim()).toBe(LONG_CLOB);
 
-//   await job.close();
-// });
+  await job.close();
+});
 
-// test("Selecting small BLOB literal", async () => {
-//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-//   const SMALL_BLOB_HEX_BYTES = "48656C6C6F";
-//   const expectedBinary = new Uint8Array([72, 101, 108, 108, 111]);
+test("Selecting small BLOB literal", async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const SMALL_BLOB_HEX_BYTES = "48656C6C6F";
+  const expectedBinary = new Uint8Array([72, 101, 108, 108, 111]);
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       BIN_DATA BLOB(1000)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1000)
+    )
+  `);
 
-//   // Assuming SQLJob supports parameterized queries and binary insertion
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-//     VALUES (BLOB(X'${SMALL_BLOB_HEX_BYTES}')) 
-//   `);
+  // Assuming SQLJob supports parameterized queries and binary insertion
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (BLOB(X'${SMALL_BLOB_HEX_BYTES}')) 
+  `);
 
-//   await stmt.execute();
-//   await stmt.close();
+  await stmt.execute();
+  await stmt.close();
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(expectedBinary));
-//   await job.close();
-// });
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(expectedBinary));
+  await job.close();
+});
 
-// test('Selecting large binary BLOB literal', async () => {
-//   const TABLE_NAME = 'SAMPLE.MY_LARGE_BLOB_TABLE';
-//   const LARGE_BLOB_HEX = "AB".repeat(1000);
-//   const LARGE_BLOB_BYTES = new Uint8Array([171, 171, 171, 171, 171, 171, 171, 171, 171, 171]);
+test('Selecting large binary BLOB literal', async () => {
+  const TABLE_NAME = 'SAMPLE.MY_LARGE_BLOB_TABLE';
+  const LARGE_BLOB_HEX = "AB".repeat(1000);
+  const LARGE_BLOB_BYTES = new Uint8Array([171, 171, 171, 171, 171, 171, 171, 171, 171, 171]);
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       BIN_DATA BLOB(1M)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1M)
+    )
+  `);
 
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-//     VALUES (BLOB(X'${LARGE_BLOB_HEX}'))
-//   `);
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (BLOB(X'${LARGE_BLOB_HEX}'))
+  `);
 
-//   await stmt.execute();
-//   await stmt.close();
+  await stmt.execute();
+  await stmt.close();
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA.length).toBe(1000);
-//   expect(res.data[0].BIN_DATA.slice(0, 10)).toStrictEqual(new Buffer(LARGE_BLOB_BYTES))
-//   await job.close();
-// });
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA.length).toBe(1000);
+  expect(res.data[0].BIN_DATA.slice(0, 10)).toStrictEqual(new Buffer(LARGE_BLOB_BYTES))
+  await job.close();
+});
 
-// test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
-//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-//   const text = "HELLO";
+test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const text = "HELLO";
 
-//   // Step 1: Convert to a Uint8Array (binary representation)
-//   const encoder = new TextEncoder();  // defaults to UTF-8
-//   const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
+  // Step 1: Convert to a Uint8Array (binary representation)
+  const encoder = new TextEncoder();  // defaults to UTF-8
+  const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       BIN_DATA BLOB(1000)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(1000)
+    )
+  `);
 
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-//     VALUES (?)
-//   `, {parameters:[[uint8array]],
-//     columnType: [ColumnType.BLOB]
-//   });
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (?)
+  `, {parameters:[[uint8array]],
+    columnType: [ColumnType.BLOB]
+  });
 
-//   await stmt.execute();
-//   await stmt.close();
+  await stmt.execute();
+  await stmt.close();
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(uint8array));
-//   await job.close();
-// });
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(uint8array));
+  await job.close();
+});
 
-// test("Selecting large BLOB as prepared",{timeout: 999999}, async () => {
-//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+test("Selecting large BLOB as prepared",{timeout: 999999}, async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
 
-//   const sizeInBytes = 100 * 1024 * 1024;
-//   const value = 171;
-//   const arr = new Uint8Array(sizeInBytes).fill(value);
+  const sizeInBytes = 100 * 1024 * 1024;
+  const value = 171;
+  const arr = new Uint8Array(sizeInBytes).fill(value);
 
-//   // const job = new SQLJob();
-//   // await job.connect(creds);
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  const job = new SQLJob();
+  await job.connect(creds);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       BIN_DATA BLOB(2G)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(2G)
+    )
+  `);
 
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-//     VALUES (?)
-//   `, {parameters:[[arr],[arr]],
-//     columnType: [ColumnType.BLOB],
-//     blobsNeeded: 2
-//   });
+  const stmt1 = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (?)
+  `, {parameters:[arr],
+    columnType: [ColumnType.BLOB]
+  });
+  await stmt1.execute();
+  await stmt1.close();
 
-//   await stmt.execute();
-//   await stmt.close();
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(arr.slice(0, 100)));
+  expect(res.data[0].BIN_DATA.length).toEqual(sizeInBytes)
+  await job.close();
+});
 
-//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(arr.slice(0, 100)));
-//   expect(res.data[0].BIN_DATA.length).toEqual(sizeInBytes)
-//   expect(res.data[1].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(arr.slice(0, 100)));
-//   expect(res.data[1].BIN_DATA.length).toEqual(sizeInBytes)
-//   await job.close();
-// });
+test("Selecting large BLOB as prepared (odbc)", { timeout: 999999 }, async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
 
-// test("Selecting large BLOB as prepared (odbc)", { timeout: 999999 }, async () => {
-//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  // prepare 100MB buffer
+  const sizeInBytes = 100 * 1024 * 1024;
+  const value = 171;
+  const arr = new Uint8Array(sizeInBytes).fill(value);
+  const buffer = Buffer.from(arr);
 
-//   // prepare 100MB buffer
-//   const sizeInBytes = 100 * 1024 * 1024;
-//   const value = 171;
-//   const arr = new Uint8Array(sizeInBytes).fill(value);
-//   const buffer = Buffer.from(arr);
+  // // connect
+  const connectionString = [
+    `DRIVER=IBM i Access ODBC Driver`,
+    `SYSTEM=${creds.host}`,
+    `UID=${creds.user}`,
+    `Password=${creds.password}`,
+    `Naming=1`,
+  ].join(`;`);
+  const connection = await odbc.connect(connectionString);
 
-//   // // connect
-//   // const connectionString = [
-//   //   `DRIVER=IBM i Access ODBC Driver`,
-//   //   `SYSTEM=${creds.host}`,
-//   //   `UID=${creds.user}`,
-//   //   `Password=${creds.password}`,
-//   //   `Naming=1`,
-//   // ].join(`;`);
-//   // const connection = await odbc.connect(connectionString);
+  // ^ replace with your DSN/connection string
 
-//   // ^ replace with your DSN/connection string
+  // cleanup & create table
+  try {
+    await connection.query(`DROP TABLE ${TABLE_NAME}`);
+  } catch (e) {
+    // ignore if not exists
+  }
 
-//   // cleanup & create table
-//   try {
-//     await connection.query(`DROP TABLE ${TABLE_NAME}`);
-//   } catch (e) {
-//     // ignore if not exists
-//   }
+  await connection.query(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      BIN_DATA BLOB(2G)
+    )
+  `);
 
-//   await connection.query(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-//       BIN_DATA BLOB(2G)
-//     )
-//   `);
+  // insert as parameter
+  const insertStmt = await connection.createStatement();
+  await insertStmt.prepare(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA) VALUES (?)
+  `);
+  await insertStmt.bind([buffer]);
+  await insertStmt.execute();
+  await insertStmt.close();
 
-//   // insert as parameter
-//   const insertStmt = await connection.createStatement();
-//   await insertStmt.prepare(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA) VALUES (?)
-//   `);
-//   await insertStmt.bind([buffer]);
-//   await insertStmt.execute();
-//   await insertStmt.close();
+  // fetch back
+  const result = await connection.query<any[]>(`SELECT * FROM ${TABLE_NAME}`);
 
-//   // fetch back
-//   const result = await connection.query<any[]>(`SELECT * FROM ${TABLE_NAME}`);
-
-//   // verify first 100 bytes match
-//   // expect(result[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(buffer.slice(0, 100)));
-//   // verify size
-//   expect(result[0].BIN_DATA.byteLength).toEqual(sizeInBytes);
-
-//   await connection.close();
-// });
+  // verify first 100 bytes match
+  // expect(result[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(buffer.slice(0, 100)));
+  // verify size
+  expect(result[0].BIN_DATA.byteLength).toEqual(sizeInBytes);
+  await connection.close();
+});
 
 
-// test("inserting blob as prepared, only blob col",{timeout: 999999}, async () => {
-//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-//   const text = "HELLO";
+test("inserting blob as prepared, only blob col",{timeout: 999999}, async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const text = "HELLO";
 
-//   // Step 1: Convert to a Uint8Array (binary representation)
-//   const encoder = new TextEncoder();  // defaults to UTF-8
-//   const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
+  // Step 1: Convert to a Uint8Array (binary representation)
+  const encoder = new TextEncoder();  // defaults to UTF-8
+  const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
 
-//   const job = new SQLJob();
-//   await job.connect(creds)
+  const job = new SQLJob();
+  await job.connect(creds)
 
 
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
-//     VALUES (?)
-//   `, {parameters:[uint8array],
-//     columnType: [ColumnType.BLOB]
-//   });
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (BIN_DATA)
+    VALUES (?)
+  `, {parameters:[uint8array],
+    columnType: [ColumnType.BLOB]
+  });
 
-//      const spyInitial = vi.spyOn(
-//       stmt as any,
-//       "getBlobFrame"
-//     );
-// try{
-//   await stmt.execute();
-//   await stmt.close();
-// } catch(e){} 
-// finally{
-//   const initialReturn = spyInitial.mock.results[0].value;
-//   expect(initialReturn.length).toEqual(12)
-//   expect(initialReturn.slice(2)).toStrictEqual(new Uint8Array([1, 0,0,0,5, 72, 69, 76,76,79]))
-// }
-// });
+     const spyInitial = vi.spyOn(
+      stmt as any,
+      "getBlobFrame"
+    );
+try{
+  await stmt.execute();
+  await stmt.close();
+} catch(e){} 
+finally{
+  const initialReturn = spyInitial.mock.results[0].value;
+  expect(initialReturn.length).toEqual(12)
+  expect(initialReturn.slice(2)).toStrictEqual(new Uint8Array([1, 0,0,0,5, 72, 69, 76,76,79]))
+}
+});
 
 test("inserting blob as prepared, multiple col",{timeout: 999999}, async () => {
   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
@@ -840,39 +835,39 @@ test("inserting blob as prepared, multiple col",{timeout: 999999}, async () => {
   const job = new SQLJob();
   await job.connect(creds)
 
-//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-//   await job.execute(`
-//     CREATE TABLE ${TABLE_NAME} (
-//       ID INT,
-//       TEXT_COLUMN VARCHAR(100),
-//       BIN_DATA BLOB(1M),
-//       BIN_DATA2 BLOB(1M)
-//     )
-//   `);
+  await job.execute(`
+    CREATE TABLE ${TABLE_NAME} (
+      ID INT,
+      TEXT_COLUMN VARCHAR(100),
+      BIN_DATA BLOB(1M),
+      BIN_DATA2 BLOB(1M)
+    )
+  `);
 
 
-//   const stmt = job.query<any[]>(`
-//     INSERT INTO ${TABLE_NAME} (ID, TEXT_COLUMN, BIN_DATA, BIN_DATA2)
-//     VALUES (?, 'text value', ?, ?)
-//   `, {parameters:[12, bin1, bin2],
-//     columnType: [ColumnType.INTEGER, ColumnType.BLOB, ColumnType.BLOB]
-//   });
+  const stmt = job.query<any[]>(`
+    INSERT INTO ${TABLE_NAME} (ID, TEXT_COLUMN, BIN_DATA, BIN_DATA2)
+    VALUES (?, 'text value', ?, ?)
+  `, {parameters:[12, bin1, bin2],
+    columnType: [ColumnType.INTEGER, ColumnType.BLOB, ColumnType.BLOB]
+  });
 
-//      const spyInitial = vi.spyOn(
-//       stmt as any,
-//       "getBlobFrame"
-//     );
-// try{
-//   await stmt.execute();
-//   await stmt.close();
-// } catch(e){} 
-// finally{
-//   const initialReturn = spyInitial.mock.results[0].value;
-//   const expectedBinary = new Uint8Array([2, 0,0,0,5, 72, 69, 76,76,79,3, 0,0,0,7,71, 79, 79, 68, 66, 89, 69 ])
-//   expect(initialReturn.length).toEqual(expectedBinary.length + 2)
-//   expect(initialReturn.slice(2)).toStrictEqual(expectedBinary)
-// }
+     const spyInitial = vi.spyOn(
+      stmt as any,
+      "getBlobFrame"
+    );
+try{
+  await stmt.execute();
+  await stmt.close();
+} catch(e){} 
+finally{
+  const initialReturn = spyInitial.mock.results[0].value;
+  const expectedBinary = new Uint8Array([2, 0,0,0,5, 72, 69, 76,76,79,3, 0,0,0,7,71, 79, 79, 68, 66, 89, 69 ])
+  expect(initialReturn.length).toEqual(expectedBinary.length + 2)
+  expect(initialReturn.slice(2)).toStrictEqual(expectedBinary)
+}
 
   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
   expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(bin1));
