@@ -120,6 +120,7 @@ export interface QueryOptions {
 
   /** Represent the type of each column. If not specified, assume varchar. */
   columnType?: ColumnType[];
+  blobsNeeded?: number;
 }
 
 /** Interface representing the result of a configuration set request. */

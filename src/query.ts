@@ -1,3 +1,4 @@
+import { b } from "vitest/dist/suite-BWgaIsVn";
 import { SQLJob } from "./sqlJob";
 import { BindingValue, ColumnType, QueryOptions, QueryResult, ServerResponse } from "./types";
 
@@ -5,6 +6,18 @@ import { BindingValue, ColumnType, QueryOptions, QueryResult, ServerResponse } f
  * Represents the possible states of a query execution.
  */
 export type QueryState = "NOT_YET_RUN" | "RUN_MORE_DATA_AVAILABLE" | "RUN_DONE" | "ERROR";
+
+interface Blob {
+  data: Uint8Array;
+  replacementIndex: number;
+}
+
+interface BlobFrameData {
+  blobs: Blob[]
+  blobId: number
+}
+
+
 
 /**
  * Represents a SQL query that can be executed and managed within a SQL job.
@@ -53,6 +66,7 @@ export class Query<T> {
   private isCLCommand: boolean;
 
   private isBlobCommand: boolean;
+  private blobsNeeded: number;
 
   /**
    * The current state of the query execution.
@@ -74,7 +88,7 @@ export class Query<T> {
   constructor(
     private job: SQLJob,
     query: string,
-    opts: QueryOptions = { isClCommand: false, parameters: undefined, columnType: undefined }
+    opts: QueryOptions = { isClCommand: false, parameters: undefined, columnType: undefined, blobsNeeded: 0 }
   ) {
     if (typeof query !== "string") {
       throw new TypeError("Query must be of type string");
@@ -87,6 +101,7 @@ export class Query<T> {
     this.isCLCommand = opts.isClCommand;
     this.isBlobCommand = opts.columnType?.some(columnType => columnType === ColumnType.BLOB)
     this.isTerseResults = opts.isTerseResults;
+    this.blobsNeeded = opts.blobsNeeded
 
     Query.globalQueryList.push(this);
   }
@@ -178,51 +193,68 @@ private concatUint8Arrays(...arrays) {
 }
 
 private getNotBlobParams():(string | number)[] {
-  return this.parameters.map(parameter => 
-          parameter.filter(data => !(data instanceof Uint8Array)))
+  if (this.parameters[0] instanceof Array){
+    return this.parameters.map(parameter => 
+            parameter.filter(data => !(data instanceof Uint8Array)))
+  }
+  return this.parameters.filter(data => !(data instanceof Uint8Array))
 }
 
 
-  private async sendBlob(blobId: number, blob: Uint8Array){
-let hexString = blobId.toString(16);
-if (hexString.length < 4) {
-  hexString = hexString.padStart(4, '0');
-}
+  private getBlobFrame(blobFrameData: BlobFrameData): Uint8Array{
+    let blobFrame = new Uint8Array(2);
+    const {blobId, blobs} = blobFrameData
 
-const buffer = new ArrayBuffer(2); // Allocate 2 bytes
-const uint8array = new Uint8Array(buffer); // Create a Uint8Array view on the buffer
+          let hexString = blobId.toString(16);
+      if (hexString.length < 4) {
+        hexString = hexString.padStart(4, '0');
+      }
+      
+      const buffer = new ArrayBuffer(2); // Allocate 2 bytes
+      const blobIdBuf = new Uint8Array(buffer); // Create a Uint8Array view on the buffer
+      
+      // Parse the hex pairs and assign to Uint8Array
+      blobFrame[0] = parseInt(hexString.substring(0, 2), 16);
+      blobFrame[1] = parseInt(hexString.substring(2, 4), 16);
+    for (const blob of blobs){
+     const {data, replacementIndex} = blob
 
-// Parse the hex pairs and assign to Uint8Array
-uint8array[0] = parseInt(hexString.substring(0, 2), 16);
-uint8array[1] = parseInt(hexString.substring(2, 4), 16);
-
-    const lenBuffer = new ArrayBuffer(4);         // Allocate 2 bytes
-    const lenView = new DataView(lenBuffer);     
-    lenView.setUint32(0, blob.length, false)
-    const lenUint8array = new Uint8Array(lenBuffer); // Create Uint8Array to view raw bytes
-
-    const blobFrame = this.concatUint8Arrays(uint8array, lenUint8array, blob)
-    // const reqBody = {
-    //     id: SQLJob.getNewUniqueId(`query`),
-    //     type: `blob`,
-    //     blob: blobFrame
-    // }
+               const replacementIndexBuffer = new ArrayBuffer(1)
+          const replacementIndexView = new DataView(replacementIndexBuffer)
+          replacementIndexView.setUint8(0, replacementIndex)
+          const replacementIndexArray = new Uint8Array(replacementIndexBuffer)
 
 
-    const queryResult = await this.job.send<QueryResult<T>>(blobFrame);
+      
+          const lenBuffer = new ArrayBuffer(4);         // Allocate 2 bytes
+          const lenView = new DataView(lenBuffer);     
+          lenView.setUint32(0, data.length, false)
+          const lenUint8array = new Uint8Array(lenBuffer); // Create Uint8Array to view raw bytes
+      
 
 
+          blobFrame = this.concatUint8Arrays(blobFrame, replacementIndexArray, lenUint8array,  data)
+    }
+    return blobFrame;
 
+  }
 
-      // const queryObject = {
-      //   id: SQLJob.getNewUniqueId(`query`),
-      //   type: this.isPrepared ? `prepare_sql_execute` : `sql`,
-      //   sql: this.sql,
-      //   terse: this.isTerseResults,
-      //   rows: rowsToFetch,
-      //   parameters: this.parameters,
-      //   columnTypes: this.columnTypes
-      // };
+  extractBlobsFromParameters(blobId: number):BlobFrameData{
+    const blobs:Blob[] = []
+    if (this.parameters[0] instanceof Array && this.parameters.length > 1){
+      throw new Error("Prepared statements involving blobs can not be batched")
+    }
+
+    for (let i = 0; i < this.parameters.length; i++){
+      if (this.columnTypes[i] === ColumnType.BLOB){
+        const blob:Blob= {
+          replacementIndex: i + 1,
+          data: this.parameters[i]
+        }
+        blobs.push(blob)
+      }
+    }
+    return {blobs, blobId};
   }
 
 
@@ -262,7 +294,8 @@ uint8array[1] = parseInt(hexString.substring(2, 4), 16);
         type: `prepare_sql`,
         terse: this.isTerseResults,
         sql: this.sql,
-        parameters: this.getNotBlobParams()
+        parameters: this.getNotBlobParams(),
+        blobsNeeded: this.blobsNeeded
       };
     }
     else {
@@ -280,7 +313,9 @@ uint8array[1] = parseInt(hexString.substring(2, 4), 16);
     let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
     if (this.columnTypes?.includes(ColumnType.BLOB)){
-      await this.sendBlob(blobId, this.parameters[0][0])
+      const blobs = this.extractBlobsFromParameters(blobId)
+      const blobFrame = await this.getBlobFrame(blobs)
+      const queryResult = await this.job.send<QueryResult<T>>(blobFrame);
     }
 
     this.state = queryResult.is_done

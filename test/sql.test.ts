@@ -1,20 +1,36 @@
-import { beforeAll, expect, test } from "vitest";
+import { beforeAll, expect, test, vi } from "vitest";
 import { ColumnType, DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
+import odbc  from 'odbc';
+
 
 let creds: DaemonServer = { ...ENV_CREDS };
+creds.rejectUnauthorized = false
 let invalidCreds: DaemonServer = {
   ...ENV_CREDS,
   user: "fakeuser",
   password: "fakepassword",
 };
+let job:SQLJob;
+let connection;
 
 beforeAll(async () => {
   const ca = await getRootCertificate(creds);
   creds.ca = ca;
-  invalidCreds.ca = ca;
+  // // invalidCreds.ca = ca;
+  // job = new SQLJob();
+  // await job.connect(creds);
+
+  //   const connectionString = [
+  //   `DRIVER=IBM i Access ODBC Driver`,
+  //   `SYSTEM=${creds.host}`,
+  //   `UID=${creds.user}`,
+  //   `Password=${creds.password}`,
+  //   `Naming=1`,
+  // ].join(`;`);
+  // connection = await odbc.connect(connectionString);
 });
 
 // test("Simple SQL query", async () => {
@@ -614,7 +630,7 @@ beforeAll(async () => {
 //   await stmt.close();
 
 //   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA).toStrictEqual(expectedBinary);
+//   expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(expectedBinary));
 //   await job.close();
 // });
 
@@ -644,43 +660,43 @@ beforeAll(async () => {
 
 //   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
 //   expect(res.data[0].BIN_DATA.length).toBe(1000);
-//   expect(res.data[0].BIN_DATA.slice(0, 10)).toStrictEqual(LARGE_BLOB_BYTES)
+//   expect(res.data[0].BIN_DATA.slice(0, 10)).toStrictEqual(new Buffer(LARGE_BLOB_BYTES))
 //   await job.close();
 // });
 
-test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
-  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
-  const text = "HELLO";
+// test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
+//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+//   const text = "HELLO";
 
-  // Step 1: Convert to a Uint8Array (binary representation)
-  const encoder = new TextEncoder();  // defaults to UTF-8
-  const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
+//   // Step 1: Convert to a Uint8Array (binary representation)
+//   const encoder = new TextEncoder();  // defaults to UTF-8
+//   const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
 
-  const job = new SQLJob();
-  await job.connect(creds);
-  await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+//   const job = new SQLJob();
+//   await job.connect(creds);
+//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
-  await job.execute(`
-    CREATE TABLE ${TABLE_NAME} (
-      ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      BIN_DATA BLOB(1000)
-    )
-  `);
+//   await job.execute(`
+//     CREATE TABLE ${TABLE_NAME} (
+//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+//       BIN_DATA BLOB(1000)
+//     )
+//   `);
 
-  const stmt = job.query<any[]>(`
-    INSERT INTO ${TABLE_NAME} (BIN_DATA)
-    VALUES (?)
-  `, {parameters:[[uint8array]],
-    columnType: [ColumnType.BLOB]
-  });
+//   const stmt = job.query<any[]>(`
+//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
+//     VALUES (?)
+//   `, {parameters:[[uint8array]],
+//     columnType: [ColumnType.BLOB]
+//   });
 
-  await stmt.execute();
-  // await stmt.close();
+//   await stmt.execute();
+//   await stmt.close();
 
-  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-  expect(res.data[0].BIN_DATA).toStrictEqual(uint8array);
-  // await job.close();
-});
+//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+//   expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(uint8array));
+//   await job.close();
+// });
 
 // test("Selecting large BLOB as prepared",{timeout: 999999}, async () => {
 //   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
@@ -689,8 +705,8 @@ test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
 //   const value = 171;
 //   const arr = new Uint8Array(sizeInBytes).fill(value);
 
-//   const job = new SQLJob();
-//   await job.connect(creds);
+//   // const job = new SQLJob();
+//   // await job.connect(creds);
 //   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
 
 //   await job.execute(`
@@ -703,14 +719,165 @@ test("Selecting small BLOB as prepared",{timeout: 999999}, async () => {
 //   const stmt = job.query<any[]>(`
 //     INSERT INTO ${TABLE_NAME} (BIN_DATA)
 //     VALUES (?)
-//   `, {parameters:[[arr]],
-//     columnType: [ColumnType.BLOB]
+//   `, {parameters:[[arr],[arr]],
+//     columnType: [ColumnType.BLOB],
+//     blobsNeeded: 2
 //   });
 
 //   await stmt.execute();
 //   await stmt.close();
 
 //   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-//   expect(res.data[0].BIN_DATA.slice(0, 100)).toStrictEqual(arr.slice(0, 100));
+//   expect(res.data[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(arr.slice(0, 100)));
+//   expect(res.data[0].BIN_DATA.length).toEqual(sizeInBytes)
+//   expect(res.data[1].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(arr.slice(0, 100)));
+//   expect(res.data[1].BIN_DATA.length).toEqual(sizeInBytes)
 //   await job.close();
 // });
+
+// test("Selecting large BLOB as prepared (odbc)", { timeout: 999999 }, async () => {
+//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+
+//   // prepare 100MB buffer
+//   const sizeInBytes = 100 * 1024 * 1024;
+//   const value = 171;
+//   const arr = new Uint8Array(sizeInBytes).fill(value);
+//   const buffer = Buffer.from(arr);
+
+//   // // connect
+//   // const connectionString = [
+//   //   `DRIVER=IBM i Access ODBC Driver`,
+//   //   `SYSTEM=${creds.host}`,
+//   //   `UID=${creds.user}`,
+//   //   `Password=${creds.password}`,
+//   //   `Naming=1`,
+//   // ].join(`;`);
+//   // const connection = await odbc.connect(connectionString);
+
+//   // ^ replace with your DSN/connection string
+
+//   // cleanup & create table
+//   try {
+//     await connection.query(`DROP TABLE ${TABLE_NAME}`);
+//   } catch (e) {
+//     // ignore if not exists
+//   }
+
+//   await connection.query(`
+//     CREATE TABLE ${TABLE_NAME} (
+//       ID INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+//       BIN_DATA BLOB(2G)
+//     )
+//   `);
+
+//   // insert as parameter
+//   const insertStmt = await connection.createStatement();
+//   await insertStmt.prepare(`
+//     INSERT INTO ${TABLE_NAME} (BIN_DATA) VALUES (?)
+//   `);
+//   await insertStmt.bind([buffer]);
+//   await insertStmt.execute();
+//   await insertStmt.close();
+
+//   // fetch back
+//   const result = await connection.query<any[]>(`SELECT * FROM ${TABLE_NAME}`);
+
+//   // verify first 100 bytes match
+//   // expect(result[0].BIN_DATA.slice(0, 100)).toStrictEqual(new Buffer(buffer.slice(0, 100)));
+//   // verify size
+//   expect(result[0].BIN_DATA.byteLength).toEqual(sizeInBytes);
+
+//   await connection.close();
+// });
+
+
+// test("inserting blob as prepared, only blob col",{timeout: 999999}, async () => {
+//   const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+//   const text = "HELLO";
+
+//   // Step 1: Convert to a Uint8Array (binary representation)
+//   const encoder = new TextEncoder();  // defaults to UTF-8
+//   const uint8array = encoder.encode(text);  // [72, 69, 76, 76, 79]
+
+//   const job = new SQLJob();
+//   await job.connect(creds)
+
+
+//   const stmt = job.query<any[]>(`
+//     INSERT INTO ${TABLE_NAME} (BIN_DATA)
+//     VALUES (?)
+//   `, {parameters:[uint8array],
+//     columnType: [ColumnType.BLOB]
+//   });
+
+//      const spyInitial = vi.spyOn(
+//       stmt as any,
+//       "getBlobFrame"
+//     );
+// try{
+//   await stmt.execute();
+//   await stmt.close();
+// } catch(e){} 
+// finally{
+//   const initialReturn = spyInitial.mock.results[0].value;
+//   expect(initialReturn.length).toEqual(12)
+//   expect(initialReturn.slice(2)).toStrictEqual(new Uint8Array([1, 0,0,0,5, 72, 69, 76,76,79]))
+// }
+// });
+
+test("inserting blob as prepared, multiple col",{timeout: 999999}, async () => {
+  const TABLE_NAME = "SAMPLE.MY_BLOB_TABLE";
+  const text = "HELLO";
+  const text2 = "GOODBYE";
+
+
+  // Step 1: Convert to a Uint8Array (binary representation)
+  const encoder = new TextEncoder();  // defaults to UTF-8
+  const bin1 = encoder.encode(text);  // [72, 69, 76, 76, 79]
+  const bin2 = encoder.encode(text2);  // [71, 79, 79, 68, 66, 89, 69 ]
+
+
+  const job = new SQLJob();
+  await job.connect(creds)
+
+//   await job.execute(`DROP TABLE ${TABLE_NAME} IF EXISTS`);
+
+//   await job.execute(`
+//     CREATE TABLE ${TABLE_NAME} (
+//       ID INT,
+//       TEXT_COLUMN VARCHAR(100),
+//       BIN_DATA BLOB(1M),
+//       BIN_DATA2 BLOB(1M)
+//     )
+//   `);
+
+
+//   const stmt = job.query<any[]>(`
+//     INSERT INTO ${TABLE_NAME} (ID, TEXT_COLUMN, BIN_DATA, BIN_DATA2)
+//     VALUES (?, 'text value', ?, ?)
+//   `, {parameters:[12, bin1, bin2],
+//     columnType: [ColumnType.INTEGER, ColumnType.BLOB, ColumnType.BLOB]
+//   });
+
+//      const spyInitial = vi.spyOn(
+//       stmt as any,
+//       "getBlobFrame"
+//     );
+// try{
+//   await stmt.execute();
+//   await stmt.close();
+// } catch(e){} 
+// finally{
+//   const initialReturn = spyInitial.mock.results[0].value;
+//   const expectedBinary = new Uint8Array([2, 0,0,0,5, 72, 69, 76,76,79,3, 0,0,0,7,71, 79, 79, 68, 66, 89, 69 ])
+//   expect(initialReturn.length).toEqual(expectedBinary.length + 2)
+//   expect(initialReturn.slice(2)).toStrictEqual(expectedBinary)
+// }
+
+  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+  expect(res.data[0].BIN_DATA).toStrictEqual(new Buffer(bin1));
+  expect(res.data[0].BIN_DATA2).toStrictEqual(new Buffer(bin2));
+  expect(res.data[0].rowId).toBeUndefined()
+
+
+});
