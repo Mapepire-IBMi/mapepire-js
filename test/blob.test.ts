@@ -15,7 +15,7 @@ const TEXT3 = "GOODBYE123#@!&*";
 const encoder = new TextEncoder(); // defaults to UTF-8
 const BIN1 = encoder.encode(TEXT); // [72, 69, 76, 76, 79]
 const BIN2 = encoder.encode(TEXT2); // [71, 79, 79, 68, 66, 89, 69 ]
-const BIN3 = encoder.encode(TEXT2); // [71, 79, 79, 68, 66, 89, 69, 49, 50, 51, 35, 64, 33, 38, 42 ]
+const BIN3 = encoder.encode(TEXT3); // [71, 79, 79, 68, 66, 89, 69, 49, 50, 51, 35, 64, 33, 38, 42 ]
 
 const TableNames = [
   "SAMPLE.MY_BLOB_TABLE",
