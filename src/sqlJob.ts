@@ -20,7 +20,7 @@ import { ExplainType, JobStatus, TransactionEndType } from "./states";
 import {
   BinaryMetadataInitialFrame,
   BinaryDataContinuationFrames,
-  allBlobData,
+  AllBlobData,
 } from "./binary.interface";
 
 const TransactionCountQuery = [
@@ -47,7 +47,7 @@ export class SQLJob {
   protected traceFile: string | undefined;
   protected isTracingChannelData: boolean = false;
   private inProgressRequests: Map<String, any> = new Map();
-  private inProgressBinary: Map<String, allBlobData> = new Map();
+  private inProgressBinary: Map<String, AllBlobData> = new Map();
 
   //currently unused but we will inevitably need a unique ID assigned to each instance
   // since server job names can be reused in some circumstances

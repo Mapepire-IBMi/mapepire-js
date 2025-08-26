@@ -13,7 +13,7 @@ export interface BinaryDataContinuationFrames {
   data: Uint8Array;
 }
 
-export interface allBlobData {
+export interface AllBlobData {
   initialFrameMetadata: BinaryMetadataInitialFrame;
   continuationFrames: BinaryDataContinuationFrames[];
 }
