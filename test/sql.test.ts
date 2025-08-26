@@ -69,13 +69,13 @@ test("Run an SQL Query in Terse Format", async () => {
   expect(res.metadata).toBeDefined();
 });
 
-test("Run an Invalid SQL Query", {timeout:9999999}, async () => {
+test("Run an Invalid SQL Query", async () => {
   const job = new SQLJob();
   await job.connect(creds);
   const query = await job.query<any>("SELECT * FROM NON_EXISTENT_TABLE");
 
   try {
-    const res = await query.execute(10);
+    await query.execute(10);
     throw new Error("Exception not hit");
   } catch (error) {
     expect(error.message).toContain("*FILE not found.");
