@@ -290,18 +290,12 @@ export class SQLJob {
       this.socket.send(binaryData, { binary: true }, (err) => {
         if (err) {
           console.error("Send error:", err);
-        } else {
-          console.log("Binary frame sent");
         }
       });
     } else {
       if (this.isTracingChannelData) console.log(content);
+      this.socket.send(JSON.stringify(content));
 
-      if (content.type === "blob") {
-        this.socket.send(content.blob);
-      } else {
-        this.socket.send(JSON.stringify(content));
-      }
       return new Promise((resolve, reject) => {
         this.status = JobStatus.BUSY;
         const removeListeners = () => {
@@ -438,23 +432,6 @@ export class SQLJob {
     }
     return bytes;
   }
-
-  // transformResultData(result: QueryResult<any>) {
-  //   const colMetaData: { name: string; type: string }[] =
-  //     result.metadata.columns;
-  //   const colMetaDataMap = new Map<String, String>();
-  //   for (const column of colMetaData) {
-  //     colMetaDataMap.set(column.name, column.type);
-  //   }
-
-  //   for (const row of result.data) {
-  //     for (const col of Object.keys(row)) {
-  //       if (colMetaDataMap.get(col) === ColumnType.BLOB) {
-  //         row[col] = this.base64ToUint8Array(row[col]);
-  //       }
-  //     }
-  //   }
-  // }
 
   /**
    * Executes an SQL command and returns the result.
