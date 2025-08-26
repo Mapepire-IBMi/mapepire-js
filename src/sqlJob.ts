@@ -15,10 +15,13 @@ import {
   ServerRequest,
   VersionCheckResult,
   ServerResponse,
-  QueryResult,
-  ColumnType,
 } from "./types";
 import { ExplainType, JobStatus, TransactionEndType } from "./states";
+import {
+  BinaryMetadataInitialFrame,
+  BinaryDataContinuationFrames,
+  allBlobData,
+} from "./binary.interface";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -28,37 +31,6 @@ const TransactionCountQuery = [
 ].join(`\n`);
 
 export const DEFAULT_PORT = 8076;
-
-interface BinaryData {
-  data: Buffer;
-  offset: number;
-}
-
-// byte[] expectedResult = {
-//     5, 49, 50, 51, 52, 53, // querylength, id
-//     0,0,0,0,  // row id
-//     4, 98, 108, 111, 98, // col name length, colname
-//     0, 80, 0, 0, 0, 1, 2, 3, 4, 5}; // blob length, blob
-// }
-interface BinaryMetadataInitialFrame {
-  queryIdLength: number;
-  queryId: string;
-}
-
-interface BinaryDataContinuationFrames {
-  rowId: number;
-  colNameLength: number;
-  colName: string;
-  blobLength: number;
-  blobStartByte: number;
-  blobEndByteExclusive: number;
-  data: Uint8Array;
-}
-
-interface allBlobData {
-  initialFrameMetadata: BinaryMetadataInitialFrame;
-  continuationFrames: BinaryDataContinuationFrames[];
-}
 
 /**
  * Represents a SQL job that manages connections and queries to a database.
@@ -133,30 +105,48 @@ export class SQLJob {
     offset: number
   ): BinaryDataContinuationFrames {
     const decoder = new TextDecoder("utf-8");
-
     let curOffset = offset;
 
-    const rowIdSlice = data.subarray(curOffset, curOffset + 4);
-    const rowIdView = new DataView(
-      rowIdSlice.buffer,
-      rowIdSlice.byteOffset,
-      rowIdSlice.byteLength
-    );
-    const rowId = rowIdView.getUint32(0, false);
-    const colNameLength = data[curOffset + 4];
-    const colName = decoder.decode(
-      data.slice(curOffset + 5, curOffset + 5 + colNameLength)
-    );
-    const slice = data.subarray(
-      curOffset + 5 + colNameLength,
-      curOffset + 9 + colNameLength
-    );
-    const view = new DataView(slice.buffer, slice.byteOffset, slice.byteLength);
-    const blobLength = view.getUint32(0, false); // false = big-endian
-    const blobStartByte = curOffset + 9 + colNameLength;
-    const blobEndByteExclusive = curOffset + 9 + colNameLength + blobLength;
+    // --- Parse Row ID (4 bytes, big-endian) ---
+    const ROW_ID_SIZE = 4;
+    const rowIdBytes = data.subarray(curOffset, curOffset + ROW_ID_SIZE);
+    const rowId = new DataView(
+      rowIdBytes.buffer,
+      rowIdBytes.byteOffset,
+      rowIdBytes.byteLength
+    ).getUint32(0, false); // false = big-endian
 
-    const binaryDataContinuationFrame: BinaryDataContinuationFrames = {
+    curOffset += ROW_ID_SIZE;
+
+    // --- Parse Column Name Length (1 byte) ---
+    const colNameLength = data[curOffset];
+    curOffset += 1;
+
+    // --- Parse Column Name (UTF-8 encoded) ---
+    const colName = decoder.decode(
+      data.slice(curOffset, curOffset + colNameLength)
+    );
+    curOffset += colNameLength;
+
+    // --- Parse Blob Length (4 bytes, big-endian) ---
+    const BLOB_LENGTH_SIZE = 4;
+    const blobLengthBytes = data.subarray(
+      curOffset,
+      curOffset + BLOB_LENGTH_SIZE
+    );
+    const blobLength = new DataView(
+      blobLengthBytes.buffer,
+      blobLengthBytes.byteOffset,
+      blobLengthBytes.byteLength
+    ).getUint32(0, false);
+
+    curOffset += BLOB_LENGTH_SIZE;
+
+    // --- Blob Byte Range ---
+    const blobStartByte = curOffset;
+    const blobEndByteExclusive = curOffset + blobLength;
+
+    return {
       rowId,
       colNameLength,
       colName,
@@ -165,21 +155,16 @@ export class SQLJob {
       blobEndByteExclusive,
       data,
     };
-
-    return binaryDataContinuationFrame;
   }
 
   addBinaryDataToInProgressRequest(
     openRequest: any,
     continuationFrame: BinaryDataContinuationFrames[]
   ) {
-
-    for (const frame of continuationFrame){
-      const row = openRequest.data.filter(
-        (row) => row.rowId === frame.rowId
-      );
+    for (const frame of continuationFrame) {
+      const row = openRequest.data.filter((row) => row.rowId === frame.rowId);
       const data = frame.data;
-  
+
       if (row.length > 0 && row[0][frame.colName] !== undefined) {
         row[0][frame.colName] = data.slice(
           frame.blobStartByte,
@@ -188,17 +173,40 @@ export class SQLJob {
         openRequest.blobsNeeded -= 1;
       }
     }
-
-
   }
 
-  deleteRowIds(response: {
-    data: {rowId:number}[]
-  }
-  ){
+  deleteRowIds(response: { data: { rowId: number }[] }) {
     for (const row of response.data) {
       delete row.rowId;
     }
+  }
+
+  handleBinaryMessage(data: Uint8Array) {
+    let response: ServerResponse | any;
+    const initialFrameMetadata = this.getInitialMetadataFromBinaryFrame(data);
+    const continuationFrame = this.getContinuedDataFromBinaryFrame(
+      data,
+      initialFrameMetadata.queryIdLength + 1
+    );
+    const cont_id = initialFrameMetadata.queryId;
+    const openRequest = this.inProgressRequests.get(cont_id);
+    if (openRequest) {
+      this.addBinaryDataToInProgressRequest(openRequest, [continuationFrame]);
+      if (openRequest.blobsNeeded === 0) {
+        response = openRequest;
+      }
+    } else {
+      const inProgressBinary = this.inProgressBinary.get(cont_id);
+      if (inProgressBinary === undefined) {
+        this.inProgressBinary.set(cont_id, {
+          initialFrameMetadata,
+          continuationFrames: [continuationFrame],
+        });
+      } else {
+        inProgressBinary.continuationFrames.push(continuationFrame);
+      }
+    }
+    return response;
   }
 
   /**
@@ -232,37 +240,7 @@ export class SQLJob {
       ws.on("message", (data: Uint8Array, isBinary: boolean) => {
         let response: ServerResponse | any;
         if (isBinary) {
-          const initialFrameMetadata =
-            this.getInitialMetadataFromBinaryFrame(data);
-          const continuationFrame = this.getContinuedDataFromBinaryFrame(
-            data,
-            initialFrameMetadata.queryIdLength + 1
-          );
-          const cont_id = initialFrameMetadata.queryId;
-          const openRequest = this.inProgressRequests.get(cont_id);
-          if (openRequest) {
-            this.addBinaryDataToInProgressRequest(
-              openRequest,
-              [continuationFrame]
-            );
-            if (openRequest.blobsNeeded === 0) {
-              response = openRequest;
-            }
-          } else {
-            const inProgressBinary = this.inProgressBinary.get(cont_id)
-            if (inProgressBinary === undefined){
-              this.inProgressBinary.set(cont_id, {
-              initialFrameMetadata,
-              continuationFrames: [continuationFrame]
-            });
-            } else {
-              inProgressBinary.continuationFrames.push(continuationFrame)
-            }
-        
-          }
-
-          console.log("binary frame");
-          console.log("Received data: ", data.slice(0, 20));
+          response = this.handleBinaryMessage(data);
         } else {
           const asString = data.toString();
           if (this.isTracingChannelData) {
@@ -281,7 +259,7 @@ export class SQLJob {
             if (response.blobsNeeded !== 0) {
               response = undefined;
             } else {
-              this.deleteRowIds(response)
+              this.deleteRowIds(response);
             }
           }
         }

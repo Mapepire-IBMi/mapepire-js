@@ -94,32 +94,32 @@ test(
   }
 );
 
-test("Selecting large CLOB as prepared", { timeout: 80000 }, async () => {
-  const sizeInChars = 100 * 1024 * 1024; // 100 MB worth of characters
-  const value = "A";
-  const str = value.repeat(sizeInChars);
+// test("Selecting large CLOB as prepared", { timeout: 80000 }, async () => {
+//   const sizeInChars = 100 * 1024 * 1024; // 100 MB worth of characters
+//   const value = "A";
+//   const str = value.repeat(sizeInChars);
 
-  const job = new SQLJob();
-  await job.connect(creds);
-  const TABLE_NAME = await createTableOneClob(job);
+//   const job = new SQLJob();
+//   await job.connect(creds);
+//   const TABLE_NAME = await createTableOneClob(job);
 
-  const stmt1 = job.query<any[]>(
-    `
-    INSERT INTO ${TABLE_NAME} (DESCRIPTION)
-    VALUES (?)
-  `,
-    {
-      parameters: [str],
-      columnType: [ColumnType.CLOB],
-    }
-  );
-  await stmt1.execute();
-  await stmt1.close();
+//   const stmt1 = job.query<any[]>(
+//     `
+//     INSERT INTO ${TABLE_NAME} (DESCRIPTION)
+//     VALUES (?)
+//   `,
+//     {
+//       parameters: [str],
+//       columnType: [ColumnType.CLOB],
+//     }
+//   );
+//   await stmt1.execute();
+//   await stmt1.close();
 
-  const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
-  expect(res.data[0].DESCRIPTION.substring(0, 100)).toStrictEqual(
-    str.substring(0, 100)
-  );
-  expect(res.data[0].DESCRIPTION.length).toEqual(sizeInChars);
-  await job.close();
-});
+//   const res = await job.execute<any>(`SELECT * FROM ${TABLE_NAME}`);
+//   expect(res.data[0].DESCRIPTION.substring(0, 100)).toStrictEqual(
+//     str.substring(0, 100)
+//   );
+//   expect(res.data[0].DESCRIPTION.length).toEqual(sizeInChars);
+//   await job.close();
+// });

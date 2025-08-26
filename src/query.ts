@@ -1,4 +1,3 @@
-import { b } from "vitest/dist/suite-BWgaIsVn";
 import { SQLJob } from "./sqlJob";
 import {
   BindingValue,
@@ -224,9 +223,6 @@ export class Query<T> {
       hexString = hexString.padStart(4, "0");
     }
 
-    const buffer = new ArrayBuffer(2); // Allocate 2 bytes
-    // const blobIdBuf = new Uint8Array(buffer); // Create a Uint8Array view on the buffer
-
     // Parse the hex pairs and assign to Uint8Array
     blobFrame[0] = parseInt(hexString.substring(0, 2), 16);
     blobFrame[1] = parseInt(hexString.substring(2, 4), 16);
@@ -238,10 +234,10 @@ export class Query<T> {
       replacementIndexView.setUint8(0, replacementIndex);
       const replacementIndexArray = new Uint8Array(replacementIndexBuffer);
 
-      const lenBuffer = new ArrayBuffer(4); // Allocate 2 bytes
+      const lenBuffer = new ArrayBuffer(4); 
       const lenView = new DataView(lenBuffer);
       lenView.setUint32(0, data.length, false);
-      const lenUint8array = new Uint8Array(lenBuffer); // Create Uint8Array to view raw bytes
+      const lenUint8array = new Uint8Array(lenBuffer);
 
       blobFrame = this.concatUint8Arrays(
         blobFrame,
@@ -309,6 +305,7 @@ export class Query<T> {
         sql: this.sql,
         parameters: this.getNotBlobParams(),
         blobsNeeded: this.blobsNeeded,
+        columnTypes: this.columnTypes,
       };
     } else {
       queryObject = {
@@ -327,7 +324,6 @@ export class Query<T> {
     if (this.columnTypes?.includes(ColumnType.BLOB)) {
       const blobs = this.extractBlobsFromParameters(blobQueryId);
       const blobFrame = await this.getBlobFrame(blobs);
-      // const queryResult = await this.job.send<QueryResult<T>>(blobFrame);
       this.job.send<QueryResult<T>>(blobFrame);
     }
 
