@@ -407,16 +407,6 @@ export class SQLJob {
    * @returns A new Query instance.
    */
   query<T>(sql: string, opts?: QueryOptions): Query<T> {
-    // if (opts?.columnType !== undefined){
-    //   for (let i = 0; i < opts?.columnType.length; i++){
-    //     if (opts.columnType[i] === ColumnType.BLOB){
-    //       for (const row of opts.parameters){
-    //         const base64 = Buffer.from(row[i] as Uint8Array).toString('base64');
-    //         row[i] = base64
-    //       }
-    //     }
-    //   }
-    // }
     return new Query(this, sql, opts);
   }
 
