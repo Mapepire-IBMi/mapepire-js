@@ -230,6 +230,9 @@ export interface ColumnMetaData {
 
   /** Indicates whether it is possible for a write on the designated column to succeed. */
   writeable: boolean;
+
+  /** The column's table name. */
+  table: string;
 }
 
 /** Type representing a collection of rows returned from a query. */
