@@ -222,13 +222,13 @@ export class Query<T> {
   }
 
   /**
-   * Fetches more rows from the currently running query.
+   * Fetch a specific number or all rows from the currently running query.
    *
-   * @param rowsToFetch - The number of additional rows to fetch.
+   * @param options - Fetch options (either rows or allRows).
    * @returns A promise that resolves to the query result.
    */
-  public async fetchMore(
-    rowsToFetch: number = this.rowsToFetch
+  private async fetch(
+    options: { rows?: number; allRows?: boolean }
   ): Promise<QueryResult<T>> {
     switch (this.state) {
       case "NOT_YET_RUN":
@@ -241,10 +241,13 @@ export class Query<T> {
       cont_id: this.correlationId,
       type: `sqlmore`,
       sql: this.sql,
-      rows: rowsToFetch,
+      ...options,
     };
 
-    this.rowsToFetch = rowsToFetch;
+    if (options.rows !== undefined) {
+      this.rowsToFetch = options.rows;
+    }
+
     let queryResult = await this.job.send<QueryResult<T>>(queryObject);
 
     this.state = queryResult.is_done
@@ -258,6 +261,27 @@ export class Query<T> {
       );
     }
     return queryResult;
+  }
+
+  /**
+   * Fetches more rows from the currently running query.
+   *
+   * @param rowsToFetch - The number of additional rows to fetch.
+   * @returns A promise that resolves to the query result.
+   */
+  public async fetchMore(
+    rowsToFetch: number = this.rowsToFetch
+  ): Promise<QueryResult<T>> {
+    return this.fetch({ rows: rowsToFetch });
+  }
+
+  /**
+   * Fetches all remaining rows from the currently running query.
+   *
+   * @returns A promise that resolves to the query result.
+   */
+  public async fetchAll(): Promise<QueryResult<T>> {
+    return this.fetch({ allRows: true });
   }
 
   /**

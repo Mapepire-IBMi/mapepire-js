@@ -176,6 +176,38 @@ test("Fetch remaining with prepared", { timeout: 20000 }, async () => {
   expect(res.is_done).toEqual(true);
 });
 
+test("Fetch all remaining rows", { timeout: 20000 }, async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  
+  const query = await job.query<any>(`
+    WITH NUMBERS (n) AS (
+        SELECT 1 FROM SYSIBM.SYSDUMMY1
+        UNION ALL
+        SELECT n + 1 FROM NUMBERS WHERE n < 305
+    )
+    SELECT * FROM NUMBERS
+  `);
+  
+  // Fetch first 100 rows
+  let res = await query.execute(100);
+  expect(res.data.length).toBe(100);
+  expect(res.is_done).toBe(false);
+  
+  // Fetch 50 more
+  res = await query.fetchMore(50);
+  expect(res.data.length).toBe(50);
+  expect(res.is_done).toBe(false);
+  
+  // Fetch all remaining (105)
+  res = await query.fetchAll();
+  expect(res.data.length).toBe(155);
+  expect(res.is_done).toBe(true);
+  
+  await query.close();
+  await job.close();
+});
+
 test("Prepared Statement", async () => {
   const job = new SQLJob();
   await job.connect(creds);
