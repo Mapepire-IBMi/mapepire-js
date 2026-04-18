@@ -199,7 +199,7 @@ test("Fetch all remaining rows", { timeout: 20000 }, async () => {
   expect(res.data.length).toBe(50);
   expect(res.is_done).toBe(false);
   
-  // Fetch all remaining (105)
+  // Fetch all remaining (155)
   res = await query.fetchAll();
   expect(res.data.length).toBe(155);
   expect(res.is_done).toBe(true);
