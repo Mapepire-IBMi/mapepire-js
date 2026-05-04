@@ -38,7 +38,7 @@ test("Explain with translate binary", async () => {
     "block size": "512",
     "date format": "iso",
     "extended metadata": true,
-    "translate binary": true
+    "translate binary": true 
   };
   const job = new SQLJob(options);
   await job.connect(creds);
