@@ -106,19 +106,16 @@ export class SSHSingleTransport extends BaseTransport {
     const javaPath = config.javaPath || 'java';
     const jvmArgs = config.jvmArgs || [];
     const serverArgs = config.serverArgs || [];
+    const restrictedLocalConnectionOnly = config.restrictedLocalConnectionOnly === true;
     
     // Ensure --single is included
     const args = serverArgs.includes('--single')
       ? serverArgs
       : [...serverArgs, '--single'];
 
-    // Add workaround for jar bug: automatically include system property for local IBM i connections
-    // This ensures jdbc:default:connection is used instead of jdbc:db2:localhost
-    // See SINGLE_MODE_JAR_ISSUE_ANALYSIS.md for details
-    const jvmArgsWithWorkaround = [
-      '-Djdbc.db2.restricted.local.connection.only=true',
-      ...jvmArgs
-    ];
+    const effectiveJvmArgs = restrictedLocalConnectionOnly
+      ? ['-Djdbc.db2.restricted.local.connection.only=true', ...jvmArgs]
+      : jvmArgs;
 
     const envEntries = Object.entries(config.env || {})
       .filter(([, value]) => typeof value !== 'undefined')
@@ -135,7 +132,7 @@ export class SSHSingleTransport extends BaseTransport {
     const launchCommand = [
       envEntries.length > 0 ? `env ${envEntries.join(' ')}` : '',
       this.shellEscape(javaPath),
-      ...jvmArgsWithWorkaround.map(arg => this.shellEscape(arg)),
+      ...effectiveJvmArgs.map(arg => this.shellEscape(arg)),
       '-jar',
       this.shellEscape(config.serverPath),
       ...args.map(arg => this.shellEscape(arg))
