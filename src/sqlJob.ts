@@ -1,5 +1,4 @@
 import { EventEmitter } from "stream";
-import WebSocket from "ws";
 import { Query } from "./query";
 import {
   ConnectionResult,
@@ -14,9 +13,13 @@ import {
   SetConfigResult,
   ServerRequest,
   VersionCheckResult,
-  ServerResponse
+  ServerResponse,
+  MapepireConfig
 } from "./types";
 import { ExplainType, JobStatus, TransactionEndType } from "./states";
+import { Transport } from "./transport";
+import { WebSocketTransport } from "./transports/websocket";
+import { SSHSingleTransport } from "./transports/sshSingleTransport";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -35,7 +38,7 @@ export class SQLJob {
    * A counter to generate unique IDs for each SQLJob instance.
    */
   protected static uniqueIdCounter: number = 0;
-  private socket: WebSocket;
+  private transport: Transport;
   protected responseEmitter: EventEmitter = new EventEmitter();
   protected status: JobStatus = JobStatus.NOT_STARTED;
 
@@ -62,60 +65,54 @@ export class SQLJob {
    * Constructs a new SQLJob instance with the specified options.
    *
    * @param options - The options for configuring the SQL job.
+   * @param transport - Optional custom transport implementation (defaults to WebSocketTransport)
    */
-  constructor(public options: JDBCOptions = {}) {}
+  constructor(public options: JDBCOptions = {}, transport?: Transport) {
+    this.transport = transport || new WebSocketTransport();
+  }
+
+  /**
+   * Creates a transport instance based on the provided configuration
+   * @param config - Mapepire configuration
+   * @returns Transport instance
+   */
+  private static createTransport(config: MapepireConfig): Transport {
+    const transportType = config.transport || 'websocket';
+    
+    switch (transportType) {
+      case 'websocket':
+        return new WebSocketTransport();
+      
+      case 'ssh-single':
+        return new SSHSingleTransport();
+      
+      default:
+        throw new Error(`Unknown transport type: ${transportType}`);
+    }
+  }
+
+  /**
+   * Creates a new SQLJob instance with unified configuration
+   * @param config - Mapepire configuration
+   * @param options - JDBC options
+   * @returns SQLJob instance
+   */
+  static withConfig(config: MapepireConfig, options: JDBCOptions = {}): SQLJob {
+    const transport = SQLJob.createTransport(config);
+    const job = new SQLJob(options, transport);
+    
+    // Store config for later use in connect
+    (job as any)._mapepireConfig = config;
+    
+    return job;
+  }
 
   /**
    * Enables local tracing of the channel data.
    */
   enableLocalTrace() {
-    this.isTracingChannelData = true
-  }
-
-  /**
-   * Establishes a WebSocket connection to the specified DB2 server.
-   *
-   * @param db2Server - The server details for the connection.
-   * @returns A promise that resolves to the WebSocket instance.
-   */
-  private getChannel(db2Server: DaemonServer): Promise<WebSocket> {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(
-        `wss://${db2Server.host}:${db2Server.port || DEFAULT_PORT}/db/`,
-        {
-          headers: {
-            authorization: `Basic ${Buffer.from(
-              `${db2Server.user}:${db2Server.password}`
-            ).toString("base64")}`,
-          },
-          ca: db2Server.ca,
-          timeout: 5000,
-          rejectUnauthorized: db2Server.rejectUnauthorized
-        }
-      );
-
-      ws.on("error", (err: Error) => {
-        console.log(err);
-        reject(err);
-      });
-
-      ws.on("message", (data: Buffer) => {
-        const asString = data.toString();
-        if (this.isTracingChannelData) {
-          console.log(asString);
-        }
-        try {
-          let response: ServerResponse = JSON.parse(asString);
-          this.responseEmitter.emit(response.id, response);
-        } catch (e: any) {
-          console.log(`Error: ` + e);
-        }
-      });
-
-      ws.once(`open`, () => {
-        resolve(ws);
-      });
-    });
+    this.isTracingChannelData = true;
+    this.transport.enableTrace();
   }
 
   /**
@@ -125,9 +122,6 @@ export class SQLJob {
    * @returns A promise that resolves to the server's response.
    */
   async send<T>(content: ServerRequest): Promise<T> {
-    if (this.isTracingChannelData) console.log(content);
-
-    this.socket.send(JSON.stringify(content));
     return new Promise((resolve, reject) => {
       this.status = JobStatus.BUSY;
       const removeListeners = () => {
@@ -143,6 +137,9 @@ export class SQLJob {
         removeListeners();
         reject(error);
       });
+      
+      // Send the request after registering listeners
+      this.transport.send(content);
     });
   }
 
@@ -171,25 +168,69 @@ export class SQLJob {
    * @param db2Server - The server details for the connection.
    * @returns A promise that resolves to the connection result.
    */
-  async connect(db2Server: DaemonServer): Promise<ConnectionResult> {
+  async connect(db2Server?: DaemonServer): Promise<ConnectionResult> {
     this.status = JobStatus.CONNECTING;
-    this.socket = await this.getChannel(db2Server);
-
-    this.socket.on(`error`, (err) => {
-      console.log(err);
-      this.dispose();
-    });
-
-    this.socket.on(`close`, (code, reason) => {
-      // Notify any pending requests that the connection has failed
-      const events = this.responseEmitter.eventNames().filter(el => typeof el === "string" && el.endsWith("_conn_fail"));
-      for (const event of events) {
-        const message = `Connection failed with code ${code}` + (reason.length > 0 ? `: ${reason.toString()}` : "");
-        this.responseEmitter.emit(event, new Error(message));
+    
+    // Get config from stored config or use legacy daemon server
+    const config = (this as any)._mapepireConfig as MapepireConfig | undefined;
+    
+    // Determine connection parameters based on transport type
+    let connectionParams: any;
+    let transportOptions: any;
+    let technique: string;
+    
+    if (config) {
+      // Using new config-based approach
+      const transportType = config.transport || 'websocket';
+      
+      switch (transportType) {
+        case 'websocket':
+          if (!config.daemon) {
+            throw new Error('daemon configuration is required for websocket transport');
+          }
+          connectionParams = config.daemon;
+          technique = 'tcp';
+          break;
+        
+        case 'ssh-single': {
+          if (!config.sshSingle) {
+            throw new Error('sshSingle configuration is required for ssh-single transport');
+          }
+          transportOptions = config.sshSingle;
+          technique = 'cli'; // SSH single mode always uses CLI technique
+          
+          // For ssh-single, connection params are not used by the server.
+          // The server uses the current SSH user and jdbc:default:connection.
+          // We pass empty object to satisfy the transport.connect() signature.
+          connectionParams = {};
+          break;
+        }
+        
+        default:
+          throw new Error(`Unknown transport type: ${transportType}`);
       }
-      this.responseEmitter.removeAllListeners();
-      this.dispose();
-    });
+    } else {
+      // Legacy mode: using daemon server directly
+      if (!db2Server) {
+        throw new Error('db2Server parameter is required when not using config-based initialization');
+      }
+      connectionParams = db2Server;
+      technique = 'tcp';
+    }
+    
+    // Connect the transport
+    await this.transport.connect(connectionParams, transportOptions);
+    
+    // Wire up the response emitter from the transport
+    this.responseEmitter = this.transport.getResponseEmitter();
+    
+    // Set up error handler for WebSocket transport (backward compatibility)
+    if (this.transport instanceof WebSocketTransport) {
+      this.transport.onError((err) => {
+        console.error(err);
+        this.dispose();
+      });
+    }
 
     const props = Object.keys(this.options)
       .map((prop) => {
@@ -204,7 +245,7 @@ export class SQLJob {
     const connectionObject = {
       id: SQLJob.getNewUniqueId(),
       type: `connect`,
-      technique: "tcp",
+      technique: technique,
       application: `Node.js client`,
       props: props.length > 0 ? props : undefined,
     };
@@ -221,6 +262,7 @@ export class SQLJob {
 
     this.id = connectResult.job;
     this.isTracingChannelData = false;
+    this.transport.disableTrace();
 
     return connectResult;
   }
@@ -447,18 +489,29 @@ export class SQLJob {
    * but this is useful for testing scenarios like unexpected socket close, etc.
    *
    * @returns The WebSocket instance.
+   * @deprecated Use getTransport() instead for transport-agnostic access
    */
   getSocket() {
-    return this.socket;
+    if (this.transport instanceof WebSocketTransport) {
+      return this.transport.getSocket();
+    }
+    return undefined;
+  }
+
+  /**
+   * Retrieves the transport instance associated with the SQL job.
+   *
+   * @returns The Transport instance.
+   */
+  getTransport(): Transport {
+    return this.transport;
   }
 
   /**
    * Disposes of the resources associated with the SQL job.
    */
-  private dispose() {
-    if (this.socket) {
-      this.socket.close();
-    }
+  private async dispose() {
+    await this.transport.close();
     this.status = JobStatus.ENDED;
   }
 }
