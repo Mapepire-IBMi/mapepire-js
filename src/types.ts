@@ -69,13 +69,6 @@ export interface SSHSingleConfig {
   
   /** Additional JVM arguments (optional) */
   jvmArgs?: string[];
-
-  /**
-   * When true, adds `-Djdbc.db2.restricted.local.connection.only=true`
-   * to the JVM arguments for local-only Db2 connectivity on IBM i.
-   * Defaults to false.
-   */
-  restrictedLocalConnectionOnly?: boolean;
   
   /** Additional server arguments (optional, --single is added automatically) */
   serverArgs?: string[];

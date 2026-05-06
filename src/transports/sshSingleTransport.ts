@@ -106,16 +106,13 @@ export class SSHSingleTransport extends BaseTransport {
     const javaPath = config.javaPath || 'java';
     const jvmArgs = config.jvmArgs || [];
     const serverArgs = config.serverArgs || [];
-    const restrictedLocalConnectionOnly = config.restrictedLocalConnectionOnly === true;
     
     // Ensure --single is included
     const args = serverArgs.includes('--single')
       ? serverArgs
       : [...serverArgs, '--single'];
 
-    const effectiveJvmArgs = restrictedLocalConnectionOnly
-      ? ['-Djdbc.db2.restricted.local.connection.only=true', ...jvmArgs]
-      : jvmArgs;
+    const effectiveJvmArgs = ['-Djdbc.db2.restricted.local.connection.only=true', ...jvmArgs];
 
     const envEntries = Object.entries(config.env || {})
       .filter(([, value]) => typeof value !== 'undefined')
