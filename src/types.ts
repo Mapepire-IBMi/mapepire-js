@@ -21,6 +21,86 @@ export interface DaemonServer {
   ca?: string | Buffer;
 }
 
+/**
+ * Transport types supported by mapepire-js
+ */
+export type MapepireTransport = 'websocket' | 'ssh-single';
+
+/**
+ * Normalized exec channel interface for SSH single transport
+ * Library-agnostic interface for remote command execution
+ */
+export interface ExecChannel {
+  /** Writable stream for sending data to remote process stdin */
+  stdin: NodeJS.WritableStream;
+  
+  /** Readable stream for receiving data from remote process stdout */
+  stdout: NodeJS.ReadableStream;
+  
+  /** Readable stream for receiving data from remote process stderr */
+  stderr: NodeJS.ReadableStream;
+  
+  /** Close the channel */
+  close(): void;
+  
+  /** Register callback for process exit event */
+  onExit(cb: (code: number | null, signal?: string) => void): void;
+}
+
+/**
+ * Exec function type for SSH single transport
+ * Executes a remote command and returns a normalized channel
+ */
+export type ExecFunction = (command: string) => Promise<ExecChannel>;
+
+/**
+ * Configuration for SSH single transport
+ * Uses library-agnostic exec function instead of SSH credentials
+ */
+export interface SSHSingleConfig {
+  /** Library-agnostic exec function for remote command execution */
+  exec: ExecFunction;
+  
+  /** Path to the mapepire-server JAR file on the remote system */
+  serverPath: string;
+  
+  /** Path to Java executable on the remote system (optional, defaults to 'java') */
+  javaPath?: string;
+  
+  /** Additional JVM arguments (optional) */
+  jvmArgs?: string[];
+  
+  /** Additional server arguments (optional, --single is added automatically) */
+  serverArgs?: string[];
+  
+  /** Working directory for the remote process (optional) */
+  cwd?: string;
+  
+  /** Environment variables for the remote process (optional) */
+  env?: NodeJS.ProcessEnv;
+  
+  /** Startup timeout in milliseconds (default: 10000) */
+  startupTimeout?: number;
+  
+  /** Request timeout in milliseconds (default: 30000) */
+  requestTimeout?: number;
+}
+
+/**
+ * Unified configuration for mapepire-js client
+ * Supports both legacy WebSocket and new single-mode transports
+ */
+export interface MapepireConfig {
+  /** Transport type (default: 'websocket') */
+  transport?: MapepireTransport;
+  
+  /** Legacy daemon server configuration (required for 'websocket' transport) */
+  daemon?: DaemonServer;
+  
+  /** SSH single configuration (required for 'ssh-single' transport) */
+  sshSingle?: SSHSingleConfig;
+}
+
 /** Interface representing a standard server response. */
 export interface ServerResponse {
   /** Unique identifier for the request. */
