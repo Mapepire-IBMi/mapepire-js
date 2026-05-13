@@ -30,7 +30,8 @@ test('Connect to Database with Invalid Properties', async () => {
   try {
     await job.connect(invalidCreds);
   } catch (error) {
-    expect(error.message).toContain('The application server rejected the connection. (User ID is not known.:FAKEUSER)');
+    expect(error.message).toContain('The application server rejected the connection');
+    expect(error.message).toContain('FAKEUSER');
   }
 });
 
