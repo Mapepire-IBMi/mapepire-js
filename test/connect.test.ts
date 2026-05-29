@@ -65,7 +65,7 @@ test('Allow empty CA and self-signed certificate', async () => {
     await job.connect(noCACreds);
     throw new Error("Self signed certificate error not hit")
   } catch(error){
-    expect(error.message).toContain('self-signed certificate');
+    expect(error.message).toMatch(/self[-\s]+signed[\s]+certificate/i)
   }
 
 });
