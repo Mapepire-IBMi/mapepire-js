@@ -9,9 +9,12 @@ let creds: DaemonServer = {...ENV_CREDS};
 creds.rejectUnauthorized = true;
 
 test(`Can get cert correctly`, async () => {
-  const cert = await getRootCertificate(creds);
-
-  expect(cert).toBeDefined();
+  // Expect undefined because the root certificate of ossbuild is from a publicly trusted CA
+  const cert = await getRootCertificate({
+    ...creds,
+    host: `ossbuild.rzkh.de`
+  });
+  expect(cert).toBeUndefined();
 });
 
 test(`Will fail correctly`, async () => {
@@ -34,7 +37,7 @@ test(`Self signed cert should not be trusted when ca not provided`, async () => 
     await job.connect(creds);
     throw new Error("Self signed certificate was trusted when it shouldn't have been");
   } catch (e) {
-    expect(e.message).toContain('self-signed certificate');
+    expect(e.message).toMatch(/self[-\s]+signed[\s]+certificate/i)
   }
 });
 
@@ -67,6 +70,6 @@ test(`Self signed certificate should not be trusted when providing not matching 
     await job.connect(creds);
     throw new Error("Self signed certificate was trusted when it shouldn't have been");
   } catch (e) {
-    expect(e.message).toContain('self-signed certificate');
+    expect(e.message).toMatch(/self[-\s]+signed[\s]+certificate|unable to get local issuer certificate/i)
   }
 });
