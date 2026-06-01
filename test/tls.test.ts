@@ -10,10 +10,7 @@ creds.rejectUnauthorized = true;
 
 test(`Can get cert correctly`, async () => {
   // Expect undefined because the root certificate of ossbuild is from a publicly trusted CA
-  const cert = await getRootCertificate({
-    ...creds,
-    host: `ossbuild.rzkh.de`
-  });
+  const cert = await getRootCertificate(creds);
   expect(cert).toBeUndefined();
 });
 
