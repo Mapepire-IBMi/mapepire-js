@@ -83,7 +83,32 @@ export type ServerTraceLevel = "OFF" | "ON" | "ERRORS" | "DATASTREAM";
 /** Type representing the possible destinations for server trace data. */
 export type ServerTraceDest = "FILE" | "IN_MEM";
 
-export type BindingValue = string | number | (string|number)[];
+/**
+ * A value that can be bound as a parameter in a prepared SQL statement.
+ * Use `null` to pass a SQL NULL (e.g. for a NULL BLOB parameter).
+ */
+export type BindingValue = string | number | null | (string|number|null)[];
+
+/**
+ * Reference to a BLOB value stored on the mapepire server, returned in query
+ * result data when a BLOB or binary column is selected in daemon mode.
+ *
+ * Retrieve the raw bytes by calling {@link SQLJob.fetchBlob} or by issuing an
+ * authenticated HTTP GET to `https://<host>:<port><blob_url>`.
+ *
+ * The token is **single-use** and expires after the server-configured TTL
+ * (default 60 s, overridable via the `BLOB_TOKEN_TTL` environment variable on
+ * the server).
+ *
+ * In single mode (no HTTP server) BLOB columns are returned as inline Base64
+ * strings instead of a `BlobRef`.
+ */
+export interface BlobRef {
+  /** Relative URL path for the blob, e.g. `"/blob/<token>"`. */
+  blob_url: string;
+  /** Size of the blob in bytes. */
+  size: number;
+}
 
 /** Interface representing options for query execution. */
 export interface QueryOptions {
@@ -142,7 +167,13 @@ export interface QueryResult<T> extends ServerResponse {
   /** Number of rows affected by the query. */
   update_count: number;
   
-  /** Data returned from the query. */
+  /**
+   * Data returned from the query.
+   *
+   * In daemon mode, BLOB/binary columns are represented as {@link BlobRef}
+   * objects rather than raw bytes. Call {@link SQLJob.fetchBlob} to retrieve
+   * the actual binary content.
+   */
   data: T[];
 
   /** Number of parameters in the prepared statement. */
