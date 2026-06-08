@@ -279,7 +279,7 @@ export class SQLJob {
         res.on("data", (chunk: Buffer) => chunks.push(chunk));
         res.on("end", () => {
           if (res.statusCode === 200) {
-            resolve(Buffer.concat(chunks));
+            resolve(Buffer.concat(chunks as Uint8Array[]));
           } else if (res.statusCode === 404) {
             reject(new Error(`Blob token not found or expired (404): ${blobRef.blob_url}`));
           } else if (res.statusCode === 401) {
