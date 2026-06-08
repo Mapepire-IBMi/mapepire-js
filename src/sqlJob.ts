@@ -1,6 +1,8 @@
 import { EventEmitter } from "stream";
+import * as https from "https";
 import { Query } from "./query";
 import {
+  BlobRef,
   ConnectionResult,
   DaemonServer,
   ExplainResults,
@@ -46,6 +48,7 @@ export class SQLJob {
   protected static uniqueIdCounter: number = 0;
   private transport: Transport;
   private _mapepireConfig: MapepireConfig | undefined;
+  private db2Server: DaemonServer | undefined;
   protected responseEmitter: EventEmitter = new EventEmitter();
   protected status: JobStatus = JobStatus.NOT_STARTED;
 
@@ -298,6 +301,13 @@ export class SQLJob {
       }
     }
     
+    // Store the DaemonServer so fetchBlob can use it (only set for websocket/daemon connections)
+    if (db2Server) {
+      this.db2Server = db2Server;
+    } else if (config?.daemon) {
+      this.db2Server = config.daemon;
+    }
+
     // Connect the transport
     await this.transport.connect(connectionParams, transportOptions);
     
@@ -345,6 +355,67 @@ export class SQLJob {
     this.transport.disableTrace();
 
     return connectResult;
+  }
+
+  /**
+   * Fetches the binary content of a BLOB from the server.
+   *
+   * When a query returns a BLOB or binary column in daemon mode, each cell
+   * value is a {@link BlobRef} containing a `blob_url` and `size`. Pass that
+   * object here to retrieve the raw bytes as a `Buffer`.
+   *
+   * The token embedded in `blobRef.blob_url` is **single-use** — calling this
+   * method consumes it. Subsequent calls with the same `BlobRef` will throw.
+   *
+   * @param blobRef - The `BlobRef` object returned in query result data.
+   * @returns A promise that resolves to a `Buffer` containing the raw blob bytes.
+   * @throws If the job is not connected, the token has expired or already been
+   *         consumed (404), or credentials are invalid (401).
+   */
+  async fetchBlob(blobRef: BlobRef): Promise<Buffer> {
+    if (!this.db2Server) {
+      throw new Error("SQLJob is not connected");
+    }
+
+    const { host, port, user, password, rejectUnauthorized, ca } = this.db2Server;
+    const resolvedPort = port || DEFAULT_PORT;
+    const auth = Buffer.from(`${user}:${password}`).toString("base64");
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const options: https.RequestOptions = {
+        hostname: host,
+        port: resolvedPort,
+        path: blobRef.blob_url,
+        method: "GET",
+        rejectUnauthorized: rejectUnauthorized !== false,
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      };
+
+      if (ca !== undefined) {
+        (options as any).ca = ca;
+      }
+
+      const req = https.request(options, (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          if (res.statusCode === 200) {
+            resolve(Buffer.concat(chunks));
+          } else if (res.statusCode === 404) {
+            reject(new Error(`Blob token not found or expired (404): ${blobRef.blob_url}`));
+          } else if (res.statusCode === 401) {
+            reject(new Error(`Unauthorized fetching blob — credentials mismatch (401): ${blobRef.blob_url}`));
+          } else {
+            reject(new Error(`Unexpected response fetching blob: HTTP ${res.statusCode} for ${blobRef.blob_url}`));
+          }
+        });
+      });
+
+      req.on("error", reject);
+      req.end();
+    });
   }
 
   /**
