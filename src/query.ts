@@ -150,7 +150,7 @@ export class Query<T> {
     }
 
     this.parameters.push(...parameters)
-    
+
     this.isPrepared = true;
     return this.parameters
   }
@@ -195,13 +195,27 @@ export class Query<T> {
       };
     }
     this.rowsToFetch = rowsToFetch;
-    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
+    let queryResult: QueryResult<T>;
+    try {
+      queryResult = await this.job.send<QueryResult<T>>(queryObject);
+    } catch (error) {
+      this.removeFromGlobalList();
+      this.state = "ERROR";
+      throw error;
+    }
 
     this.state = queryResult.is_done
       ? "RUN_DONE"
       : "RUN_MORE_DATA_AVAILABLE";
+    // If the query is done, remove it from the global list to allow for garbage collection
+    if (this.state === "RUN_DONE") {
+      this.removeFromGlobalList();
+    }
 
     if (queryResult.success !== true && !this.isCLCommand) {
+      // Remove the query from the global list to allow for garbage collection
+      this.removeFromGlobalList();
+
       this.state = "ERROR";
 
       let errorList = [
@@ -245,13 +259,24 @@ export class Query<T> {
     };
 
     this.rowsToFetch = rowsToFetch;
-    let queryResult = await this.job.send<QueryResult<T>>(queryObject);
+    let queryResult: QueryResult<T>;
+    try {
+      queryResult = await this.job.send<QueryResult<T>>(queryObject);
+    } catch (error) {
+      this.removeFromGlobalList();
+      this.state = "ERROR";
+      throw error;
+    }
 
     this.state = queryResult.is_done
       ? "RUN_DONE"
       : "RUN_MORE_DATA_AVAILABLE";
+    if (this.state === "RUN_DONE") {
+      this.removeFromGlobalList();
+    }
 
     if (queryResult.success !== true) {
+      this.removeFromGlobalList();
       this.state = "ERROR";
       throw new Error(
         queryResult.error || `Failed to run query (unknown error)`
@@ -266,6 +291,9 @@ export class Query<T> {
    * @returns A promise that resolves when the query is closed.
    */
   public async close() {
+    // Remove the query from the global list to allow for garbage collection
+    this.removeFromGlobalList();
+
     if (this.correlationId && this.state !== "RUN_DONE") {
       this.state = "RUN_DONE";
       let queryObject = {
@@ -277,6 +305,17 @@ export class Query<T> {
       return this.job.send<ServerResponse>(queryObject);
     } else if (undefined === this.correlationId) {
       this.state = "RUN_DONE";
+    }
+  }
+
+  /**
+   * Removes the query from the global query list, allowing it to be garbage collected.
+   * This is called when the query is closed or completed.
+   */
+  private removeFromGlobalList() {
+    const index = Query.globalQueryList.indexOf(this);
+    if (index !== -1) {
+      Query.globalQueryList.splice(index, 1);
     }
   }
 
