@@ -359,7 +359,7 @@ export interface JDBCOptions {
   "query storage limit"?: string;
   "receive buffer size"?: string;
   "send buffer size"?: string;
-  "vairiable field compression"?: boolean;
+  "variable field compression"?: boolean;
 
   // Sort Properties
   "sort"?: "hex" | "language" | "table";
