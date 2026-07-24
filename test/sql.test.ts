@@ -1,10 +1,12 @@
-import { beforeAll, expect, test } from "vitest";
+import { beforeAll, expect, test, vi } from "vitest";
 import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
 
+
 let creds: DaemonServer = { ...ENV_CREDS };
+creds.rejectUnauthorized = false
 let invalidCreds: DaemonServer = {
   ...ENV_CREDS,
   user: "fakeuser",
@@ -521,8 +523,10 @@ test(
   async () => {
     const job = new SQLJob();
     await job.connect(creds);
-    const promise = job.query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')").execute();
-    job.getSocket().terminate() // Simulate connection drop.
+    const promise = job
+      .query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')")
+      .execute();
+    job.getSocket().terminate(); // Simulate connection drop.
     await expect(promise).rejects.toThrow("Connection failed with code 1006");
     await job.close();
   }
