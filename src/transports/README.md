@@ -69,12 +69,14 @@ const exec = createNodeSSHExec(connectedSSH);
 ```typescript
 interface SSHSingleConfig {
   exec: ExecFunction;           // Required: SSH exec function
-  serverPath: string;           // Required: Path to JAR on IBM i
-  javaPath?: string;            // Optional: Java path (default: 'java')
-  jvmArgs?: string[];          // Optional: JVM arguments
-  cwd?: string;                // Optional: Working directory
-  env?: NodeJS.ProcessEnv;     // Optional: Environment variables
-  startupTimeout?: number;     // Optional: Startup timeout (default: 10000ms)
+  serverPath?: string;          // Optional: Path to JAR on IBM i
+                                //   default: /opt/mapepire/lib/mapepire/mapepire-server.jar
+  javaPath?: string;            // Optional: Java path
+                                //   default: /QOpenSys/QIBM/ProdData/JavaVM/jdk80/64bit/bin/java
+  jvmArgs?: string[];           // Optional: Additional JVM arguments
+  cwd?: string;                 // Optional: Working directory
+  env?: NodeJS.ProcessEnv;      // Optional: Additional env vars (required IBM i vars are always set)
+  startupTimeout?: number;      // Optional: Startup timeout (default: 10000ms)
 }
 ```
 

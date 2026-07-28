@@ -50,10 +50,14 @@ import type { ExecFunction, ExecChannel } from '../types';
  * ```
  */
 export function createNodeSSHExec(ssh: NodeSSH): ExecFunction {
+  // Validate eagerly so callers get an immediate error if passed a disconnected instance
+  if (!ssh.connection) {
+    throw new Error('NodeSSH instance is not connected');
+  }
+
   return async function exec(command: string): Promise<ExecChannel> {
-    // Get the underlying ssh2 client from node-ssh
     const client = ssh.connection;
-    
+
     if (!client) {
       throw new Error('NodeSSH instance is not connected');
     }

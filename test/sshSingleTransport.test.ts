@@ -198,16 +198,19 @@ describe('SSHSingleTransport', () => {
       ).rejects.toThrow('SSH single transport requires an exec function');
     });
 
-    it('should throw error if serverPath is not provided', async () => {
+    it('should use default serverPath when not provided', async () => {
       const server: DaemonServer = {
         host: 'localhost',
         user: '*CURRENT',
         password: ''
       };
 
-      await expect(
-        transport.connect(server, { exec: mockExec } as any)
-      ).rejects.toThrow('SSH single transport requires serverPath');
+      simulateHandshake(mockChannel);
+
+      await transport.connect(server, { exec: mockExec } as any);
+
+      const command = mockExec.mock.calls[0][0];
+      expect(command).toContain('/opt/mapepire/lib/mapepire/mapepire-server.jar');
     });
 
     it('should include custom javaPath in command', async () => {

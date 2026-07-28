@@ -103,7 +103,8 @@ export class SSHSingleTransport extends BaseTransport {
    * Build the remote command to launch mapepire-server
    */
   private buildRemoteCommand(config: SSHSingleConfig): string {
-    const javaPath = config.javaPath || 'java';
+    const DEFAULT_JAVA_PATH = '/QOpenSys/QIBM/ProdData/JavaVM/jdk80/64bit/bin/java';
+    const javaPath = config.javaPath || DEFAULT_JAVA_PATH;
     const jvmArgs = config.jvmArgs || [];
     const serverArgs = config.serverArgs || [];
     
@@ -112,9 +113,24 @@ export class SSHSingleTransport extends BaseTransport {
       ? serverArgs
       : [...serverArgs, '--single'];
 
-    const effectiveJvmArgs = ['-Djdbc.db2.restricted.local.connection.only=true', ...jvmArgs];
+    const effectiveJvmArgs = [
+      '-Djdbc.db2.restricted.local.connection.only=true',
+      '-Dos400.stdio.convert=N',
+      ...jvmArgs,
+    ];
 
-    const envEntries = Object.entries(config.env || {})
+    // Required IBM i env vars for correct CCSID and stdio handling.
+    // Without these the JVM/PASE I/O converters will translate the JSON
+    // protocol stream and corrupt it.  User-supplied env is merged after
+    // so advanced users can override individual values if needed.
+    const REQUIRED_ENV: Record<string, string> = {
+      QIBM_JAVA_STDIO_CONVERT: 'N',
+      QIBM_PASE_DESCRIPTOR_STDIO: 'B',
+      QIBM_USE_DESCRIPTOR_STDIO: 'Y',
+      QIBM_MULTI_THREADED: 'Y',
+    };
+    const mergedEnv = { ...REQUIRED_ENV, ...(config.env || {}) };
+    const envEntries = Object.entries(mergedEnv)
       .filter(([, value]) => typeof value !== 'undefined')
       .map(([key, value]) => `${key}=${this.shellEscape(String(value))}`);
 
@@ -125,15 +141,15 @@ export class SSHSingleTransport extends BaseTransport {
       commandParts.push(`cd ${this.shellEscape(config.cwd)}`);
     }
 
-    // Build the launch command
-    const launchCommand = [
-      envEntries.length > 0 ? `env ${envEntries.join(' ')}` : '',
+    // Build the launch command.  env entries are always present (required vars).
+    // Use 'exec' to replace the PASE shell with the JVM directly — saves one IBM i job.
+    const launchCommand = `exec env ${envEntries.join(' ')} ${[
       this.shellEscape(javaPath),
       ...effectiveJvmArgs.map(arg => this.shellEscape(arg)),
       '-jar',
       this.shellEscape(config.serverPath),
-      ...args.map(arg => this.shellEscape(arg))
-    ].filter(Boolean).join(' ');
+      ...args.map(arg => this.shellEscape(arg)),
+    ].join(' ')}`;
 
     commandParts.push(launchCommand);
 
@@ -287,15 +303,14 @@ export class SSHSingleTransport extends BaseTransport {
       throw new Error('SSH single transport requires an exec function in sshSingle config');
     }
 
-    if (!options.serverPath) {
-      throw new Error('SSH single transport requires serverPath in sshSingle config');
-    }
+    const DEFAULT_SERVER_PATH = '/opt/mapepire/lib/mapepire/mapepire-server.jar';
+    const serverPath = options.serverPath || DEFAULT_SERVER_PATH;
 
     this.setState(ConnectionState.CONNECTING);
 
     const config: SSHSingleConfig = {
       exec: options.exec,
-      serverPath: options.serverPath,
+      serverPath: serverPath,
       javaPath: options.javaPath,
       jvmArgs: options.jvmArgs,
       serverArgs: options.serverArgs,
