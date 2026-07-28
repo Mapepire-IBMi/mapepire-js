@@ -61,8 +61,9 @@ export interface SSHSingleConfig {
   /** Library-agnostic exec function for remote command execution */
   exec: ExecFunction;
   
-  /** Path to the mapepire-server JAR file on the remote system */
-  serverPath: string;
+  /** Path to the mapepire-server JAR file on the remote system.
+   *  Defaults to /opt/mapepire/lib/mapepire/mapepire-server.jar */
+  serverPath?: string;
   
   /** Path to Java executable on the remote system (optional, defaults to 'java') */
   javaPath?: string;
