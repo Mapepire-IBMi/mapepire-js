@@ -1,14 +1,13 @@
+import 'dotenv/config';
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { Client } from 'ssh2';
-import { NodeSSH } from 'node-ssh';
 import { SQLJob, createSSH2Exec, createNodeSSHExec } from '../src';
 
 /**
  * SSH Helper Tests
- * 
+ *
  * These tests verify that the SSH helper utilities (createSSH2Exec and createNodeSSHExec)
  * correctly map SSH client objects to ExecFunction interfaces that work with Mapepire.
- * 
+ *
  * Test Environment Variables:
  * - SSH_TEST_HOST: SSH hostname (required)
  * - SSH_TEST_PORT: SSH port (default: 22)
@@ -16,7 +15,27 @@ import { SQLJob, createSSH2Exec, createNodeSSHExec } from '../src';
  * - SSH_TEST_PASS: SSH password (required)
  * - SSH_TEST_SERVER_PATH: Path to mapepire-server.jar (required)
  * - SSH_TEST_JAVA_PATH: Path to java executable (optional, defaults to 'java')
+ *
+ * Note: ssh2 and node-ssh are optional dependencies. Tests are skipped if not installed.
  */
+
+// Optional imports — ssh2 and node-ssh are only required if using SSH single mode
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Client: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let NodeSSH: any;
+
+try {
+  Client = require('ssh2').Client;
+} catch (e) {
+  // ssh2 not installed — tests will be skipped
+}
+
+try {
+  NodeSSH = require('node-ssh').NodeSSH;
+} catch (e) {
+  // node-ssh not installed — tests will be skipped
+}
 
 // SSH credentials from environment
 const SSH_CREDS = {
@@ -32,8 +51,8 @@ const SERVER_CONFIG = {
   startupTimeout: 30000,
 };
 
-// Skip tests if SSH credentials are not configured
-const shouldSkip = !process.env.SSH_TEST_HOST || !process.env.SSH_TEST_USER;
+// Skip tests if SSH credentials are not configured OR if optional dependencies are missing
+const shouldSkip = !process.env.SSH_TEST_HOST || !process.env.SSH_TEST_USER || !Client || !NodeSSH;
 
 describe('SSH Helper - createSSH2Exec', () => {
   if (shouldSkip) {
@@ -223,7 +242,7 @@ describe('SSH Helper - createNodeSSHExec', () => {
     return;
   }
 
-  let ssh: NodeSSH | null = null;
+  let ssh: any = null;
 
   afterAll(() => {
     if (ssh) {
@@ -501,7 +520,7 @@ describe('SSH Helpers - Integration Tests', () => {
   });
 
   test('should work with custom working directory (node-ssh)', async () => {
-    let ssh: NodeSSH | null = null;
+    let ssh: any = null;
 
     try {
       ssh = new NodeSSH();
