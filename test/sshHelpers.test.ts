@@ -60,11 +60,14 @@ describe('SSH Helper - createSSH2Exec', () => {
     return;
   }
 
-  let sshClient: Client | null = null;
+  let sshClient: any = null;
 
-  afterAll(() => {
+  afterAll(async () => {
     if (sshClient) {
-      sshClient.end();
+      await new Promise<void>((resolve) => {
+        sshClient.once('close', () => resolve());
+        sshClient.end();
+      });
       sshClient = null;
     }
   });
@@ -448,7 +451,7 @@ describe('SSH Helpers - Error Handling', () => {
   });
 
   test('should handle invalid server path gracefully', async () => {
-    let sshClient: Client | null = null;
+    let sshClient: any = null;
 
     try {
       sshClient = new Client();
@@ -486,7 +489,7 @@ describe('SSH Helpers - Integration Tests', () => {
   }
 
   test('should work with custom JVM args (ssh2)', async () => {
-    let sshClient: Client | null = null;
+    let sshClient: any = null;
 
     try {
       sshClient = new Client();
