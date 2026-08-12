@@ -10,18 +10,15 @@ enum ConnectionState {
   CLOSED     = 'closed',
 }
 
+import {
+  DEFAULT_JAVA_PATH,
+  DEFAULT_SERVER_PATH,
+  DEFAULT_JVM_ARGS,
+  REQUIRED_IBM_I_ENV,
+  ensureSingleFlag,
+} from './utils';
+
 export interface LocalSingleTransportOptions extends TransportOptions, Partial<LocalSingleConfig> {}
-
-const DEFAULT_JAVA_PATH = '/QOpenSys/QIBM/ProdData/JavaVM/jdk80/64bit/bin/java';
-const DEFAULT_SERVER_PATH = '/QOpenSys/pkgs/lib/mapepire/mapepire-server.jar';
-
-// Always applied last — prevent the JVM/PASE layer from corrupting the JSON stream
-const REQUIRED_IBM_I_ENV: Record<string, string> = {
-  QIBM_JAVA_STDIO_CONVERT: 'N',
-  QIBM_PASE_DESCRIPTOR_STDIO: 'B',
-  QIBM_USE_DESCRIPTOR_STDIO: 'Y',
-  QIBM_MULTI_THREADED: 'Y',
-};
 
 /**
  * Spawns mapepire-server with --single flag as a child process and communicates
@@ -57,16 +54,8 @@ export class LocalSingleTransport extends BaseTransport {
     const javaPath = config.javaPath || DEFAULT_JAVA_PATH;
     const serverPath = config.serverPath || DEFAULT_SERVER_PATH;
 
-    const jvmArgs = [
-      '-Djdbc.db2.restricted.local.connection.only=true',
-      '-Dos400.stdio.convert=N',
-      ...(config.jvmArgs || []),
-    ];
-
-    const serverArgs = config.serverArgs || [];
-    const effectiveServerArgs = serverArgs.includes('--single')
-      ? serverArgs
-      : [...serverArgs, '--single'];
+    const jvmArgs = [...DEFAULT_JVM_ARGS, ...(config.jvmArgs || [])];
+    const effectiveServerArgs = ensureSingleFlag(config.serverArgs);
 
     const args = [...jvmArgs, '-jar', serverPath, ...effectiveServerArgs];
 
