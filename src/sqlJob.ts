@@ -20,6 +20,7 @@ import { ExplainType, JobStatus, TransactionEndType } from "./states";
 import { Transport } from "./transport";
 import { WebSocketTransport } from "./transports/websocket";
 import { SSHSingleTransport } from "./transports/sshSingleTransport";
+import { LocalSingleTransport } from "./transports/localSingleTransport";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -39,6 +40,7 @@ export class SQLJob {
    */
   protected static uniqueIdCounter: number = 0;
   private transport: Transport;
+  private _mapepireConfig: MapepireConfig | undefined;
   protected responseEmitter: EventEmitter = new EventEmitter();
   protected status: JobStatus = JobStatus.NOT_STARTED;
 
@@ -68,7 +70,7 @@ export class SQLJob {
    * @param transport - Optional custom transport implementation (defaults to WebSocketTransport)
    */
   constructor(public options: JDBCOptions = {}, transport?: Transport) {
-    this.transport = transport || new WebSocketTransport();
+    this.transport = transport ?? new WebSocketTransport();
   }
 
   /**
@@ -77,15 +79,24 @@ export class SQLJob {
    * @returns Transport instance
    */
   private static createTransport(config: MapepireConfig): Transport {
-    const transportType = config.transport || 'websocket';
-    
+    // Auto-detect local-single when running on IBM i with no credentials
+    const isLocalSingleAuto =
+      !config.transport &&
+      (process.platform as string) === 'os400' &&
+      !config.daemon?.user;
+
+    const transportType = isLocalSingleAuto ? 'local-single' : (config.transport || 'websocket');
+
     switch (transportType) {
       case 'websocket':
         return new WebSocketTransport();
-      
+
       case 'ssh-single':
         return new SSHSingleTransport();
-      
+
+      case 'local-single':
+        return new LocalSingleTransport();
+
       default:
         throw new Error(`Unknown transport type: ${transportType}`);
     }
@@ -100,10 +111,7 @@ export class SQLJob {
   static withConfig(config: MapepireConfig, options: JDBCOptions = {}): SQLJob {
     const transport = SQLJob.createTransport(config);
     const job = new SQLJob(options, transport);
-    
-    // Store config for later use in connect
-    (job as any)._mapepireConfig = config;
-    
+    job._mapepireConfig = config;
     return job;
   }
 
@@ -170,19 +178,21 @@ export class SQLJob {
    */
   async connect(db2Server?: DaemonServer): Promise<ConnectionResult> {
     this.status = JobStatus.CONNECTING;
-    
-    // Get config from stored config or use legacy daemon server
-    const config = (this as any)._mapepireConfig as MapepireConfig | undefined;
-    
-    // Determine connection parameters based on transport type
+
+    const config = this._mapepireConfig;
+
     let connectionParams: any;
     let transportOptions: any;
     let technique: string;
-    
+
     if (config) {
-      // Using new config-based approach
-      const transportType = config.transport || 'websocket';
-      
+      const isLocalSingleAuto =
+        !config.transport &&
+        (process.platform as string) === 'os400' &&
+        !config.daemon?.user;
+
+      const transportType = isLocalSingleAuto ? 'local-single' : (config.transport || 'websocket');
+
       switch (transportType) {
         case 'websocket':
           if (!config.daemon) {
@@ -191,31 +201,40 @@ export class SQLJob {
           connectionParams = config.daemon;
           technique = 'tcp';
           break;
-        
-        case 'ssh-single': {
+
+        case 'ssh-single':
           if (!config.sshSingle) {
             throw new Error('sshSingle configuration is required for ssh-single transport');
           }
           transportOptions = config.sshSingle;
-          technique = 'cli'; // SSH single mode always uses CLI technique
-          
-          // For ssh-single, connection params are not used by the server.
-          // The server uses the current SSH user and jdbc:default:connection.
-          // We pass empty object to satisfy the transport.connect() signature.
+          technique = 'cli';
           connectionParams = {};
           break;
-        }
-        
+
+        case 'local-single':
+          transportOptions = config.localSingle || {};
+          technique = 'cli';
+          connectionParams = {};
+          break;
+
         default:
           throw new Error(`Unknown transport type: ${transportType}`);
       }
     } else {
-      // Legacy mode: using daemon server directly
-      if (!db2Server) {
-        throw new Error('db2Server parameter is required when not using config-based initialization');
+      // Legacy path: if on IBM i with no credentials, auto-switch to local-single.
+      // Otherwise use the existing WebSocketTransport with the supplied DaemonServer.
+      if ((process.platform as string) === 'os400' && !db2Server?.user) {
+        this.transport = new LocalSingleTransport();
+        transportOptions = {};
+        connectionParams = {};
+        technique = 'cli';
+      } else {
+        if (!db2Server) {
+          throw new Error('db2Server parameter is required when not using config-based initialization');
+        }
+        connectionParams = db2Server;
+        technique = 'tcp';
       }
-      connectionParams = db2Server;
-      technique = 'tcp';
     }
     
     // Connect the transport

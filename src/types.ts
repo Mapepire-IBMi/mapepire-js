@@ -4,15 +4,15 @@
 export interface DaemonServer {
   /** The hostname or IP address of the server. */
   host: string;
-  
+
   /** The port number to connect to (optional, defaults to 8076). */
   port?: number;
-  
+
   /** The username for authentication. */
-  user: string;
-  
+  user?: string;
+
   /** The password for authentication. */
-  password: string;
+  password?: string;
   
   /** Reject unauthorized certificates (optional). */
   rejectUnauthorized?: boolean;
@@ -24,7 +24,7 @@ export interface DaemonServer {
 /**
  * Transport types supported by mapepire-js
  */
-export type MapepireTransport = 'websocket' | 'ssh-single';
+export type MapepireTransport = 'websocket' | 'ssh-single' | 'local-single';
 
 /**
  * Normalized exec channel interface for SSH single transport
@@ -88,6 +88,40 @@ export interface SSHSingleConfig {
 }
 
 /**
+ * Configuration for local single transport (authentication-free, IBM i only).
+ * Launches the mapepire-server JAR as a child process on the local IBM i machine.
+ * The current IBM i job's user profile is used automatically — no credentials required.
+ */
+export interface LocalSingleConfig {
+  /** Path to the mapepire-server JAR file on the local IBM i system.
+   *  Defaults to /QOpenSys/pkgs/lib/mapepire/mapepire-server.jar */
+  serverPath?: string;
+
+  /** Path to the Java executable on the local system.
+   *  Defaults to /QOpenSys/QIBM/ProdData/JavaVM/jdk80/64bit/bin/java */
+  javaPath?: string;
+
+  /** Additional JVM arguments (optional) */
+  jvmArgs?: string[];
+
+  /** Additional server arguments (optional, --single is added automatically) */
+  serverArgs?: string[];
+
+  /** Working directory for the spawned child process (optional) */
+  cwd?: string;
+
+  /** Additional environment variables for the child process (optional).
+   *  Required IBM i stdio env vars are always applied last and cannot be overridden. */
+  env?: NodeJS.ProcessEnv;
+
+  /** Startup timeout in milliseconds (default: 10000) */
+  startupTimeout?: number;
+
+  /** Request timeout in milliseconds (default: 30000) */
+  requestTimeout?: number;
+}
+
+/**
  * Unified configuration for mapepire-js client
  * Supports both legacy WebSocket and new single-mode transports
  */
@@ -100,6 +134,10 @@ export interface MapepireConfig {
   
   /** SSH single configuration (required for 'ssh-single' transport) */
   sshSingle?: SSHSingleConfig;
+
+  /** Local single configuration (required for 'local-single' transport).
+   *  Only valid when running on IBM i (process.platform === 'os400'). */
+  localSingle?: LocalSingleConfig;
 }
 
 /** Interface representing a standard server response. */
