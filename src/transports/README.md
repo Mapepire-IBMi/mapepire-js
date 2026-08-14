@@ -212,6 +212,29 @@ The bundled JAR version is pinned in [`src/serverVersion.ts`](../serverVersion.t
 > The JAR ships inside the npm tarball. Consumers never run the download script; they get the
 > pre-bundled JAR when they `npm install`.
 
+## Updating the Bundled Server Version
+
+The bundled JAR version is pinned in [`src/serverVersion.ts`](../serverVersion.ts). To upgrade:
+
+1. **Edit `VERSION`** in `src/serverVersion.ts`:
+   ```typescript
+   export const VERSION = `2.3.7`;  // bump to the new release tag
+   ```
+   Do **not** edit `JAR_SHA256` — the build script overwrites it automatically.
+
+2. **Run the download script** (or just `npm run prepack`):
+   ```sh
+   npx tsx scripts/downloadServer.ts
+   ```
+   This fetches `mapepire-server-2.3.7.jar` from GitHub Releases, saves it to `dist/`, computes
+   its SHA-256, and patches `JAR_SHA256` back into `src/serverVersion.ts`.
+
+3. **Commit both changed files** — `src/serverVersion.ts` and `dist/mapepire-server-X.Y.Z.jar` —
+   then publish.
+
+> The JAR ships inside the npm tarball. Consumers never run the download script; they get the
+> pre-bundled JAR when they `npm install`.
+
 ## Files
 
 - [`websocket.ts`](./websocket.ts) - WebSocket transport implementation
