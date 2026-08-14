@@ -293,13 +293,6 @@ export class SSHSingleTransport extends BaseTransport {
    * @param server - Server connection details (not used for ssh-single, kept for interface compatibility)
    * @param options - SSH single transport options
    */
-  /**
-   * Exposes the remote command used to launch the server (useful for testing/debugging).
-   */
-  getRemoteCommand(): string | undefined {
-    return this.remoteCommand;
-  }
-
   async connect(server: DaemonServer, options: SSHSingleTransportOptions = {}): Promise<void> {
     if (!options.exec) {
       throw new Error('SSH single transport requires an exec function in sshSingle config');
