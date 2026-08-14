@@ -297,17 +297,17 @@ export class SSHSingleTransport extends BaseTransport {
   }
 
   /**
-   * Establishes an SSH single connection
-   * @param server - Server connection details (not used for ssh-single, kept for interface compatibility)
-   * @param options - SSH single transport options
-   */
-  /**
    * Exposes the remote command used to launch the server (useful for testing/debugging).
    */
   getRemoteCommand(): string | undefined {
     return this.remoteCommand;
   }
 
+  /**
+   * Establishes an SSH single connection.
+   * @param server - Server connection details (not used for ssh-single, kept for interface compatibility)
+   * @param options - SSH single transport options
+   */
   async connect(server: DaemonServer, options: SSHSingleTransportOptions = {}): Promise<void> {
     if (!options.exec) {
       throw new Error('SSH single transport requires an exec function in sshSingle config');
@@ -322,7 +322,10 @@ export class SSHSingleTransport extends BaseTransport {
     let resolvedServerPath = options.serverPath;
 
     if (!resolvedServerPath && options.upload) {
-      // Resolve the local bundled JAR path (sits next to the compiled dist output)
+      // Resolve the local bundled JAR path (sits next to the compiled dist output).
+      // Note: __dirname is only available in CJS. This package is compiled as CJS
+      // (see tsconfig "module": "commonjs"), so this is safe. If ESM support is
+      // ever added, replace with: new URL('../../dist', import.meta.url).pathname
       const localJarPath = path.join(__dirname, '..', '..', 'dist', SERVER_VERSION_FILE);
 
       resolvedServerPath = await ensureServerInstalled({
