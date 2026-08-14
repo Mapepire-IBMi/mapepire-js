@@ -1,4 +1,5 @@
 export { SQLJob } from "./sqlJob";
+export { VERSION, SERVER_VERSION_TAG, SERVER_FILE_PREFIX, SERVER_VERSION_FILE, JAR_SHA256 } from "./serverVersion";
 export { Pool } from "./pool";
 export { getCertificate, getRootCertificate } from "./tls";
 export * as States from "./states";
@@ -11,5 +12,6 @@ export { LineBuffer } from "./transports/lineBuffer";
 export * from "./transports/utils";
 
 // SSH Helper exports - user provides connected SSH client
-export { createSSH2Exec } from "./transports/ssh2Helper";
-export { createNodeSSHExec } from "./transports/nodeSSHHelper";
+export { createSSH2Exec, createSSH2Upload, createSSH2Connection } from "./transports/ssh2Helper";
+export { createNodeSSHExec, createNodeSSHUpload, createNodeSSHConnection } from "./transports/nodeSSHHelper";
+export { ensureServerInstalled, ServerInstallerOptions } from "./transports/serverInstaller";
