@@ -43,6 +43,7 @@ function makeFakeSsh2Client(stdout = '', stderr = '', exitCode = 0) {
     sftp: vi.fn((cb: (err: null, sftp: any) => void) => {
       cb(null, {
         fastPut: vi.fn((_local: string, _remote: string, done: (err: null) => void) => done(null)),
+        end: vi.fn(),
       });
     }),
     _stream: stream,
@@ -185,6 +186,7 @@ describe('createSSH2Upload – unit', () => {
           fastPut: vi.fn((_l: string, _r: string, done: (err: Error) => void) =>
             done(new Error('fastPut failed'))
           ),
+          end: vi.fn(),
         });
       }),
     };

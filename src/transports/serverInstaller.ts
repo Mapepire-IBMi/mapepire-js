@@ -87,25 +87,22 @@ function semVerLessThan(a: SemVer, b: SemVer): boolean {
  * Returns trimmed stdout. Throws on non-zero exit.
  */
 async function runCommand(exec: ExecFunction, command: string): Promise<string> {
+  const channel = await exec(command);
   return new Promise((resolve, reject) => {
-    exec(command)
-      .then(channel => {
-        let stdout = '';
-        let stderr = '';
+    let stdout = '';
+    let stderr = '';
 
-        channel.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
-        channel.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
+    channel.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8'); });
+    channel.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString('utf8'); });
 
-        channel.onExit((code) => {
-          channel.close();
-          if (code !== 0) {
-            reject(new Error(`Command "${command}" exited with code ${code}: ${stderr.trim()}`));
-          } else {
-            resolve(stdout.trim());
-          }
-        });
-      })
-      .catch(reject);
+    channel.onExit((code) => {
+      channel.close();
+      if (code !== 0) {
+        reject(new Error(`Command "${command}" exited with code ${code}: ${stderr.trim()}`));
+      } else {
+        resolve(stdout.trim());
+      }
+    });
   });
 }
 
@@ -136,7 +133,10 @@ async function checkRemoteVersions(
       `/QOpenSys/usr/bin/find "${installDir}" "${vscodePath}" -type f -name "${SERVER_FILE_PREFIX}*.jar" 2>/dev/null`
     );
   } catch {
-    // Directories don't exist or find failed — treat as no files found
+    // Silently treat as no files found. The most common cause is that the
+    // directories don't exist yet (first install). A genuine permissions error
+    // will surface on the subsequent upload attempt (mkdir / sftp), so the
+    // real problem is not swallowed permanently — just deferred one step.
     return [];
   }
 

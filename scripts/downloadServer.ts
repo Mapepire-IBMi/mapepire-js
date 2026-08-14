@@ -13,7 +13,7 @@
 
 import { Octokit } from '@octokit/rest';
 import { createHash } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { SERVER_FILE_PREFIX, SERVER_VERSION_FILE, SERVER_VERSION_TAG } from '../src/serverVersion';
 
@@ -23,10 +23,6 @@ const REPO  = 'mapepire-server';
 const distDirectory  = path.join('.', 'dist');
 const serverFilePath = path.join(distDirectory, SERVER_VERSION_FILE);
 const serverVersionSrc = path.join('.', 'src', 'serverVersion.ts');
-
-function fileExists(filePath: string): boolean {
-  try { statSync(filePath); return true; } catch { return false; }
-}
 
 async function downloadFile(url: string, outputPath: string): Promise<Buffer> {
   const response = await fetch(url);
@@ -62,7 +58,7 @@ async function work(): Promise<void> {
   }
 
   // Idempotent: skip download if JAR already present
-  if (fileExists(serverFilePath)) {
+  if (existsSync(serverFilePath)) {
     console.log(`Server JAR already present: ${SERVER_VERSION_FILE}`);
     // Still compute and patch SHA256 in case it was cleared
     const buffer = readFileSync(serverFilePath);

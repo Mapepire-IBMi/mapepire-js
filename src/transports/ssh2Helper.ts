@@ -103,6 +103,8 @@ export function createSSH2Upload(client: Client): UploadFunction {
       client.sftp((err, sftp) => {
         if (err) { reject(err); return; }
         sftp.fastPut(localPath, remotePath, (putErr) => {
+          // Close SFTP session so the remote end flushes the file before we return.
+          sftp.end();
           if (putErr) { reject(putErr); } else { resolve(); }
         });
       });
