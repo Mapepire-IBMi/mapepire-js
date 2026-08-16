@@ -18,25 +18,41 @@ await job.connect({
 ```
 
 ### 2. SSH Single Transport
-Launch mapepire-server in single mode via SSH. No daemon required. The simplest path uses
-`createSSH2Connection` which enables private install automatically — no pre-installed server needed.
+Launch mapepire-server in single mode via SSH. No daemon required. Private install is enabled
+automatically — no pre-installed server needed.
 
+**ssh2** (simplest):
 ```typescript
-import { Client } from 'ssh2';
-import { SQLJob, createSSH2Connection } from '@ibm/mapepire-js';
+import { SQLJob, connectSSH2, createSSH2Connection } from '@ibm/mapepire-js';
 
-const client = new Client();
-// ... connect client ...
+const client = await connectSSH2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
 
 const job = SQLJob.withConfig({
   transport: 'ssh-single',
-  sshSingle: createSSH2Connection(client),  // private install enabled automatically
+  sshSingle: createSSH2Connection(client),
 });
 
 await job.connect();  // installs JAR to $HOME/.mapepire if needed, then connects
 const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
 await job.close();
 client.end();
+```
+
+**node-ssh** (simplest):
+```typescript
+import { SQLJob, connectNodeSSH, createNodeSSHConnection } from '@ibm/mapepire-js';
+
+const ssh = await connectNodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+
+const job = SQLJob.withConfig({
+  transport: 'ssh-single',
+  sshSingle: createNodeSSHConnection(ssh),
+});
+
+await job.connect();
+const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
+await job.close();
+ssh.dispose();
 ```
 
 Need extra options? Spread the connection alongside them:
@@ -73,56 +89,23 @@ Built-in helpers for ssh2 and node-ssh libraries:
 
 | Function | Returns | Use when |
 |---|---|---|
-| `createSSH2Connection(client)` | `{ exec, upload }` | **Default** — private install enabled automatically |
-| `createNodeSSHConnection(ssh)` | `{ exec, upload }` | **Default** — node-ssh variant |
+| `connectSSH2(options)` | `Promise<Client>` | **Recommended** — connect + get a ready Client in one call |
+| `connectNodeSSH(options)` | `Promise<NodeSSH>` | **Recommended** — node-ssh variant |
+| `createSSH2Connection(client)` | `{ exec, upload }` | You already have a connected Client |
+| `createNodeSSHConnection(ssh)` | `{ exec, upload }` | You already have a connected NodeSSH |
 | `createSSH2Exec(client)` | `ExecFunction` | Advanced — you supply `serverPath` explicitly |
 | `createSSH2Upload(client)` | `UploadFunction` | Advanced — compose `exec` + `upload` manually |
 | `createNodeSSHExec(ssh)` | `ExecFunction` | Advanced — you supply `serverPath` explicitly |
 | `createNodeSSHUpload(ssh)` | `UploadFunction` | Advanced — compose `exec` + `upload` manually |
 
-### Default usage (recommended)
+### Already have a connected client?
 
-Pass the result of `createSSH2Connection` / `createNodeSSHConnection` directly to `sshSingle`.
-Private install is enabled automatically — no extra options required.
-
-**ssh2:**
-```typescript
-import { Client } from 'ssh2';
-import { SQLJob, createSSH2Connection } from '@ibm/mapepire-js';
-
-const client = new Client();
-// ... connect client ...
-
-const job = SQLJob.withConfig({
-  transport: 'ssh-single',
-  sshSingle: createSSH2Connection(client),
-});
-await job.connect();
-```
-
-**node-ssh:**
-```typescript
-import { NodeSSH } from 'node-ssh';
-import { SQLJob, createNodeSSHConnection } from '@ibm/mapepire-js';
-
-const ssh = new NodeSSH();
-await ssh.connect({ host: 'ibmi.example.com', username: 'user', password: 'pass' });
-
-const job = SQLJob.withConfig({
-  transport: 'ssh-single',
-  sshSingle: createNodeSSHConnection(ssh),
-});
-await job.connect();
-```
-
-Need extra options (`javaPath`, `startupTimeout`, etc.)? Spread the connection:
+Pass it straight to `createSSH2Connection` / `createNodeSSHConnection` — useful when you're
+reusing an existing SSH connection across multiple jobs:
 
 ```typescript
-sshSingle: {
-  ...createSSH2Connection(client),   // or createNodeSSHConnection(ssh)
-  javaPath: '/QOpenSys/QIBM/ProdData/JavaVM/jdk17/64bit/bin/java',
-  startupTimeout: 20000,
-}
+sshSingle: createSSH2Connection(client)       // ssh2
+sshSingle: createNodeSSHConnection(ssh)       // node-ssh
 ```
 
 ### Advanced usage — explicit exec + upload

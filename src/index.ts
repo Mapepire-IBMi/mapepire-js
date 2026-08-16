@@ -10,5 +10,5 @@ export { SSHSingleTransport, SSHSingleTransportOptions } from "./transports/sshS
 export { LineBuffer } from "./transports/lineBuffer";
 
 // SSH Helper exports - user provides connected SSH client
-export { createSSH2Exec, createSSH2Upload, createSSH2Connection } from "./transports/ssh2Helper";
-export { createNodeSSHExec, createNodeSSHUpload, createNodeSSHConnection } from "./transports/nodeSSHHelper";
+export { createSSH2Exec, createSSH2Upload, createSSH2Connection, connectSSH2 } from "./transports/ssh2Helper";
+export { createNodeSSHExec, createNodeSSHUpload, createNodeSSHConnection, connectNodeSSH } from "./transports/nodeSSHHelper";

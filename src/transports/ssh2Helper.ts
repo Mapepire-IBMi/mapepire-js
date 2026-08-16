@@ -5,7 +5,7 @@
  * Pass your connected ssh2 Client instance to get an exec or upload function.
  */
 
-import type { Client } from 'ssh2';
+import type { Client, ConnectConfig } from 'ssh2';
 import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from '../types';
 
 /**
@@ -143,4 +143,39 @@ export function createSSH2Connection(client: Client): Pick<SSHSingleConfig, 'exe
     exec:   createSSH2Exec(client),
     upload: createSSH2Upload(client),
   };
+}
+
+/**
+ * Promisifies the ssh2 Client connect lifecycle.
+ * Returns the connected Client — pass it straight to `createSSH2Connection`.
+ * You are responsible for calling `client.end()` when done.
+ *
+ * @param options - ssh2 ConnectConfig (host, username, password / privateKey, port, …)
+ * @returns Connected ssh2 Client instance
+ *
+ * @example
+ * ```typescript
+ * import { SQLJob, connectSSH2, createSSH2Connection } from '@ibm/mapepire-js';
+ *
+ * const client = await connectSSH2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+ *
+ * const job = SQLJob.withConfig({
+ *   transport: 'ssh-single',
+ *   sshSingle: createSSH2Connection(client),
+ * });
+ *
+ * await job.connect();
+ * // ... use job ...
+ * await job.close();
+ * client.end();
+ * ```
+ */
+export function connectSSH2(options: ConnectConfig): Promise<Client> {
+  return new Promise((resolve, reject) => {
+    const { Client: SSH2Client } = require('ssh2') as typeof import('ssh2');
+    const client = new SSH2Client();
+    client.on('ready', () => resolve(client));
+    client.on('error', reject);
+    client.connect(options);
+  });
 }

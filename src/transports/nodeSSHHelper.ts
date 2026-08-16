@@ -5,7 +5,7 @@
  * Pass your connected NodeSSH instance to get an exec or upload function.
  */
 
-import type { NodeSSH } from 'node-ssh';
+import type { NodeSSH, Config as NodeSSHConfig } from 'node-ssh';
 import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from '../types';
 
 /**
@@ -146,4 +146,35 @@ export function createNodeSSHConnection(ssh: NodeSSH): Pick<SSHSingleConfig, 'ex
     exec:   createNodeSSHExec(ssh),
     upload: createNodeSSHUpload(ssh),
   };
+}
+
+/**
+ * Connects a NodeSSH instance using the given options and returns it.
+ * Pass the result straight to `createNodeSSHConnection`.
+ * You are responsible for calling `ssh.dispose()` when done.
+ *
+ * @param options - node-ssh Config (host, username, password / privateKey, port, …)
+ * @returns Connected NodeSSH instance
+ *
+ * @example
+ * ```typescript
+ * import { SQLJob, connectNodeSSH, createNodeSSHConnection } from '@ibm/mapepire-js';
+ *
+ * const ssh = await connectNodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+ *
+ * const job = SQLJob.withConfig({
+ *   transport: 'ssh-single',
+ *   sshSingle: createNodeSSHConnection(ssh),
+ * });
+ *
+ * await job.connect();
+ * // ... use job ...
+ * await job.close();
+ * ssh.dispose();
+ * ```
+ */
+export function connectNodeSSH(options: NodeSSHConfig): Promise<NodeSSH> {
+  const { NodeSSH: NodeSSHClass } = require('node-ssh') as typeof import('node-ssh');
+  const ssh = new NodeSSHClass();
+  return ssh.connect(options).then(() => ssh);
 }
