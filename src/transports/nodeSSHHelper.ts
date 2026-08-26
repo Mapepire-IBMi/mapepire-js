@@ -6,7 +6,7 @@
  */
 
 import type { NodeSSH, Config as NodeSSHConfig } from 'node-ssh';
-import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from '../types';
+import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig, MapepireConfig } from '../types';
 
 /**
  * Creates an exec function from a connected NodeSSH instance.
@@ -177,4 +177,43 @@ export function connectNodeSSH(options: NodeSSHConfig): Promise<NodeSSH> {
   const { NodeSSH: NodeSSHClass } = require('node-ssh') as typeof import('node-ssh');
   const ssh = new NodeSSHClass();
   return ssh.connect(options).then(() => ssh);
+}
+
+/**
+ * Creates a MapepireConfig suitable for use with Pool when using node-ssh.
+ *
+ * Bundles `exec` and `upload` from the shared NodeSSH instance so the Pool can
+ * run private install once and then start all N jobs in parallel.
+ * `teardown` is intentionally absent — the Pool does not own the SSH connection.
+ * The caller must call `ssh.dispose()` after `pool.end()` returns.
+ *
+ * @param ssh - Connected NodeSSH instance (shared across all pool jobs)
+ * @param extraOptions - Any SSHSingleConfig fields except exec, upload, and teardown
+ * @returns MapepireConfig ready to pass as `Pool({ config: ... })`
+ *
+ * @example
+ * ```typescript
+ * import { connectNodeSSH, createNodeSSHPoolConfig, Pool } from '@ibm/mapepire-js';
+ *
+ * const ssh = await connectNodeSSH({ host: 'ibm-i.example.com', username: 'USER', password: 'PASS' });
+ * const pool = new Pool({
+ *   config: createNodeSSHPoolConfig(ssh),
+ *   maxSize: 5,
+ *   startingSize: 5,  // pre-warm all jobs — JVM boot is expensive
+ * });
+ * await pool.init();
+ * // ... use pool ...
+ * await pool.end();
+ * ssh.dispose();  // caller closes SSH connection after pool
+ * ```
+ */
+export function createNodeSSHPoolConfig(
+  ssh: NodeSSH,
+  extraOptions?: Omit<SSHSingleConfig, 'exec' | 'upload' | 'teardown'>
+): MapepireConfig {
+  const sshSingle: SSHSingleConfig = {
+    ...createNodeSSHConnection(ssh),
+    ...extraOptions,
+  };
+  return { transport: 'ssh-single', sshSingle };
 }
