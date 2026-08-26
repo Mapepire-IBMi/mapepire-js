@@ -107,6 +107,13 @@ export interface SSHSingleConfig {
    * Only used when upload is provided and serverPath is not set.
    */
   privateInstallDir?: string;
+
+  /**
+   * Optional teardown callback invoked automatically after the transport closes.
+   * Set by SQLJob.ssh2() / SQLJob.nodeSSH() to end the internally-owned SSH client.
+   * Not needed when you manage the SSH client yourself.
+   */
+  teardown?: () => void;
 }
 
 /**
