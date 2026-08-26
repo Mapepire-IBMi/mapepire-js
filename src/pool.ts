@@ -1,15 +1,28 @@
+import path from "path";
 import { SQLJob } from "./sqlJob";
-import { BindingValue, DaemonServer, JDBCOptions, QueryOptions } from "./types";
-import {JobStatus} from "./states";
+import { BindingValue, DaemonServer, JDBCOptions, MapepireConfig, QueryOptions } from "./types";
+import { JobStatus } from "./states";
+import { ensureServerInstalled } from "./transports/serverInstaller";
+import { VERSION, SERVER_VERSION_FILE, JAR_SHA256 } from "./serverVersion";
 
 /**
  * Represents the options for configuring a connection pool.
  */
 export interface PoolOptions {
-  /** The credentials required to connect to the daemon server. */
-  creds: DaemonServer,
+  /**
+   * Credentials for connecting to the WebSocket daemon server.
+   * Takes priority over `config` if both are supplied.
+   */
+  creds?: DaemonServer,
 
-   /**
+  /**
+   * Unified transport configuration (e.g. ssh-single).
+   * Used only when `creds` is not provided.
+   * For ssh-single pools, omit `teardown` — the pool does not own the SSH client.
+   */
+  config?: MapepireConfig,
+
+  /**
    * Optional JDBC options for configuring the connection.
    * These options may include settings such as connection timeout,
    * SSL settings, etc.
@@ -19,12 +32,21 @@ export interface PoolOptions {
   /**
    * The maximum number of connections allowed in the pool.
    * This defines the upper limit on the number of active connections.
+   *
+   * For ssh-single pools: each job is a full JVM process on IBM i. The
+   * dominant cost is native PASE process RAM (~300 MB per job, fixed
+   * regardless of query load) — not Java heap, which stays small at idle.
+   * Keep maxSize at 3–5. Set startingSize === maxSize to pre-warm all
+   * jobs at init() — dynamic scale-up triggers a JVM boot that cannot
+   * help the burst already in flight.
    */
   maxSize: number,
 
   /**
    * The number of connections to create when the pool is initialized.
    * This determines the starting size of the connection pool.
+   *
+   * For ssh-single pools set this equal to maxSize to pre-warm all jobs.
    */
   startingSize: number
 }
@@ -48,6 +70,12 @@ export class Pool {
   private jobs: SQLJob[] = [];
 
   /**
+   * Resolved server JAR path after a pool-level private install (ssh-single only).
+   * Injected into each job's config so the per-job installer is skipped entirely.
+   */
+  private resolvedServerPath: string | undefined;
+
+  /**
    * Constructs a new Pool instance with the specified options.
    *
    * @param options - The options for configuring the connection pool.
@@ -57,11 +85,14 @@ export class Pool {
   /**
    * Initializes the pool by creating a number of SQL jobs defined by the starting size.
    *
-   * @returns A promise that resolves when all jobs have been created.
+   * For ssh-single pools with private install enabled (upload provided, serverPath not set),
+   * this method runs ensureServerInstalled() exactly once before spawning any jobs, then
+   * starts all jobs in parallel with the resolved serverPath already injected — eliminating
+   * the race condition of N jobs all trying to upload the JAR simultaneously.
+   *
+   * @returns A promise that resolves when all jobs have been created and connected.
    */
-  init() {
-    let promises: Promise<SQLJob>[] = [];
-
+  async init() {
     if (this.options.maxSize <= 0) {
       return Promise.reject("Max size must be greater than 0");
     } else if (this.options.startingSize <= 0) {
@@ -71,6 +102,33 @@ export class Pool {
         "Max size must be greater than or equal to starting size"
       );
     }
+
+    if (!this.options.creds && !this.options.config) {
+      return Promise.reject("Either creds or config must be provided");
+    }
+
+    // Pre-install: for ssh-single with upload enabled and no explicit serverPath,
+    // run ensureServerInstalled() once here so all jobs can start in parallel
+    // without racing each other to upload the JAR.
+    const cfg = this.options.config;
+    if (
+      !this.options.creds &&
+      cfg?.transport === 'ssh-single' &&
+      cfg.sshSingle?.upload &&
+      !cfg.sshSingle?.serverPath
+    ) {
+      const localJarPath = path.join(__dirname, '..', 'dist', SERVER_VERSION_FILE);
+      this.resolvedServerPath = await ensureServerInstalled({
+        exec: cfg.sshSingle.exec,
+        upload: cfg.sshSingle.upload,
+        localJarPath,
+        version: VERSION,
+        jarSha256: JAR_SHA256,
+        remoteInstallDir: cfg.sshSingle.privateInstallDir,
+      });
+    }
+
+    const promises: Promise<SQLJob>[] = [];
     for (let i = 0; i < this.options.startingSize; i++) {
       promises.push(this.addJob());
     }
@@ -124,14 +182,42 @@ export class Pool {
       this.cleanup();
     }
 
-    const newSqlJob = options.existingJob || new SQLJob(this.options.opts);
+    let newSqlJob: SQLJob;
+
+    // Priority 1: creds present → WebSocket path (unchanged behaviour)
+    // Priority 2: config present, no creds → config-based path (ssh-single etc.)
+    if (this.options.creds) {
+      newSqlJob = options.existingJob || new SQLJob(this.options.opts);
+    } else {
+      // Build effective config: if pre-install resolved a serverPath, inject it
+      // so the per-job installer is skipped entirely.
+      let effectiveConfig = this.options.config!;
+      if (
+        this.resolvedServerPath &&
+        effectiveConfig.transport === 'ssh-single' &&
+        effectiveConfig.sshSingle
+      ) {
+        effectiveConfig = {
+          ...effectiveConfig,
+          sshSingle: {
+            ...effectiveConfig.sshSingle,
+            serverPath: this.resolvedServerPath,
+          },
+        };
+      }
+      newSqlJob = options.existingJob || SQLJob.withConfig(effectiveConfig, this.options.opts);
+    }
 
     if (options.poolIgnore !== true) {
       this.jobs.push(newSqlJob);
     }
 
     if (newSqlJob.getStatus() === "notStarted") {
-      await newSqlJob.connect(this.options.creds);
+      if (this.options.creds) {
+        await newSqlJob.connect(this.options.creds);
+      } else {
+        await newSqlJob.connect();
+      }
     }
 
     return newSqlJob;
@@ -171,8 +257,11 @@ export class Pool {
       const freeist = busyJobs.sort(
         (a, b) => a.getRunningCount() - b.getRunningCount()
       )[0];
-      // If this job is busy, and the pool is not full, add a new job for later
-      if (this.hasSpace() && freeist.getRunningCount() > 2) {
+      // For ssh-single, dynamic scale-up launches a JVM (~15-18s boot) that cannot
+      // help the burst already in flight. Suppress the addJob() call and let the
+      // pool queue behind existing jobs. Pre-warm all jobs via startingSize === maxSize.
+      const isSshSingle = !this.options.creds && this.options.config?.transport === 'ssh-single';
+      if (!isSshSingle && this.hasSpace() && freeist.getRunningCount() > 2) {
         this.addJob();
       }
       return freeist;

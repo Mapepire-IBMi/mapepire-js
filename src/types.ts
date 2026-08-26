@@ -108,7 +108,6 @@ export interface SSHSingleConfig {
    */
   privateInstallDir?: string;
 
-
   /**
    * Optional teardown callback invoked automatically after the transport closes.
    * Set by SQLJob.ssh2() / SQLJob.nodeSSH() to end the internally-owned SSH client.
