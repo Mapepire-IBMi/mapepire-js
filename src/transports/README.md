@@ -21,38 +21,33 @@ await job.connect({
 Launch mapepire-server in single mode via SSH. No daemon required. Private install is enabled
 automatically — no pre-installed server needed.
 
-**ssh2** (simplest):
+**Credential-first (recommended)** — SSH client lifecycle managed internally:
+```typescript
+import { SQLJob } from '@ibm/mapepire-js';
+
+// ssh2
+const job = await SQLJob.ssh2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+await job.connect();
+const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
+await job.close();  // SSH client torn down automatically
+
+// node-ssh
+const job = await SQLJob.nodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+await job.connect();
+const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
+await job.close();  // SSH instance disposed automatically
+```
+
+**Bring your own client** — useful when reusing an existing SSH connection:
 ```typescript
 import { SQLJob, connectSSH2, createSSH2Connection } from '@ibm/mapepire-js';
 
 const client = await connectSSH2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
-
-const job = SQLJob.withConfig({
-  transport: 'ssh-single',
-  sshSingle: createSSH2Connection(client),
-});
-
-await job.connect();  // installs JAR to $HOME/.mapepire if needed, then connects
-const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
-await job.close();
-client.end();
-```
-
-**node-ssh** (simplest):
-```typescript
-import { SQLJob, connectNodeSSH, createNodeSSHConnection } from '@ibm/mapepire-js';
-
-const ssh = await connectNodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
-
-const job = SQLJob.withConfig({
-  transport: 'ssh-single',
-  sshSingle: createNodeSSHConnection(ssh),
-});
-
+const job = SQLJob.withConfig({ transport: 'ssh-single', sshSingle: createSSH2Connection(client) });
 await job.connect();
 const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
 await job.close();
-ssh.dispose();
+client.end();  // caller manages SSH client lifetime
 ```
 
 Need extra options? Spread the connection alongside them:
@@ -89,10 +84,12 @@ Built-in helpers for ssh2 and node-ssh libraries:
 
 | Function | Returns | Use when |
 |---|---|---|
-| `connectSSH2(options)` | `Promise<Client>` | **Recommended** — connect + get a ready Client in one call |
-| `connectNodeSSH(options)` | `Promise<NodeSSH>` | **Recommended** — node-ssh variant |
-| `createSSH2Connection(client)` | `{ exec, upload }` | You already have a connected Client |
-| `createNodeSSHConnection(ssh)` | `{ exec, upload }` | You already have a connected NodeSSH |
+| `SQLJob.ssh2(creds, opts?)` | `Promise<SQLJob>` | **Simplest** — credentials in, job out, SSH lifecycle managed internally |
+| `SQLJob.nodeSSH(creds, opts?)` | `Promise<SQLJob>` | **Simplest** — node-ssh variant |
+| `connectSSH2(options)` | `Promise<Client>` | Connect + get a ready Client in one call |
+| `connectNodeSSH(options)` | `Promise<NodeSSH>` | node-ssh variant |
+| `createSSH2Connection(client)` | `{ exec, upload }` | Single job — you already have a connected Client |
+| `createNodeSSHConnection(ssh)` | `{ exec, upload }` | Single job — you already have a connected NodeSSH |
 | `createSSH2Exec(client)` | `ExecFunction` | Advanced — you supply `serverPath` explicitly |
 | `createSSH2Upload(client)` | `UploadFunction` | Advanced — compose `exec` + `upload` manually |
 | `createNodeSSHExec(ssh)` | `ExecFunction` | Advanced — you supply `serverPath` explicitly |
