@@ -20,6 +20,10 @@ import { ExplainType, JobStatus, TransactionEndType } from "./states";
 import { Transport } from "./transport";
 import { WebSocketTransport } from "./transports/websocket";
 import { SSHSingleTransport } from "./transports/sshSingleTransport";
+import { connectSSH2, createSSH2Connection } from "./transports/ssh2Helper";
+import { connectNodeSSH, createNodeSSHConnection } from "./transports/nodeSSHHelper";
+import type { ConnectConfig as SSH2ConnectConfig } from "ssh2";
+import type { Config as NodeSSHConfig } from "node-ssh";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -105,6 +109,62 @@ export class SQLJob {
     (job as any)._mapepireConfig = config;
     
     return job;
+  }
+
+  /**
+   * Creates a connected SQLJob using ssh2 credentials.
+   * The SSH client is managed internally — no need to create, connect, or close it.
+   * Call job.connect() with no arguments, then job.close() when done.
+   *
+   * @param creds  - ssh2 ConnectConfig (host, username, password / privateKey, port, …)
+   * @param options - Optional JDBC options
+   * @returns SQLJob instance ready for job.connect()
+   *
+   * @example
+   * ```typescript
+   * const job = await SQLJob.ssh2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+   * await job.connect();
+   * const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
+   * await job.close();  // SSH client torn down automatically
+   * ```
+   */
+  static async ssh2(creds: SSH2ConnectConfig, options: JDBCOptions = {}): Promise<SQLJob> {
+    const client = await connectSSH2(creds);
+    return SQLJob.withConfig({
+      transport: 'ssh-single',
+      sshSingle: {
+        ...createSSH2Connection(client),
+        teardown: () => client.end(),
+      },
+    }, options);
+  }
+
+  /**
+   * Creates a connected SQLJob using node-ssh credentials.
+   * The SSH instance is managed internally — no need to create, connect, or dispose it.
+   * Call job.connect() with no arguments, then job.close() when done.
+   *
+   * @param creds  - node-ssh Config (host, username, password / privateKey, port, …)
+   * @param options - Optional JDBC options
+   * @returns SQLJob instance ready for job.connect()
+   *
+   * @example
+   * ```typescript
+   * const job = await SQLJob.nodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
+   * await job.connect();
+   * const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
+   * await job.close();  // SSH instance disposed automatically
+   * ```
+   */
+  static async nodeSSH(creds: NodeSSHConfig, options: JDBCOptions = {}): Promise<SQLJob> {
+    const ssh = await connectNodeSSH(creds);
+    return SQLJob.withConfig({
+      transport: 'ssh-single',
+      sshSingle: {
+        ...createNodeSSHConnection(ssh),
+        teardown: () => ssh.dispose(),
+      },
+    }, options);
   }
 
   /**

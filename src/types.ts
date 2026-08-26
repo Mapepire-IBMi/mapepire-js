@@ -54,6 +54,13 @@ export interface ExecChannel {
 export type ExecFunction = (command: string) => Promise<ExecChannel>;
 
 /**
+ * Upload function type for SSH single transport private install.
+ * Transfers a local file to a remote path over SFTP/SCP.
+ * The caller is responsible for providing this — use createSSH2Upload() or createNodeSSHUpload().
+ */
+export type UploadFunction = (localPath: string, remotePath: string) => Promise<void>;
+
+/**
  * Configuration for SSH single transport
  * Uses library-agnostic exec function instead of SSH credentials
  */
@@ -85,6 +92,28 @@ export interface SSHSingleConfig {
   
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
+
+  /**
+   * Upload function for private install (from createSSH2Upload or createNodeSSHUpload).
+   * When provided and serverPath is not set, mapepire-js will automatically check
+   * whether the correct JAR version exists at $HOME/.mapepire on the remote system,
+   * upload it if absent or outdated, and launch from there.
+   */
+  upload?: UploadFunction;
+
+  /**
+   * Override the remote install directory for private install.
+   * Defaults to $HOME/.mapepire on the remote IBM i system.
+   * Only used when upload is provided and serverPath is not set.
+   */
+  privateInstallDir?: string;
+
+  /**
+   * Optional teardown callback invoked automatically after the transport closes.
+   * Set by SQLJob.ssh2() / SQLJob.nodeSSH() to end the internally-owned SSH client.
+   * Not needed when you manage the SSH client yourself.
+   */
+  teardown?: () => void;
 }
 
 /**
