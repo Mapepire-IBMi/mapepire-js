@@ -49,6 +49,7 @@ export class SSHSingleTransport extends BaseTransport {
   private state: ConnectionState = ConnectionState.IDLE;
   private startupTimer: NodeJS.Timeout | undefined;
   private pendingHandshake: { resolve: () => void; reject: (err: Error) => void } | undefined;
+  private teardown: (() => void) | undefined;
 
   /**
    * Check if debug logging is enabled
@@ -329,6 +330,9 @@ export class SSHSingleTransport extends BaseTransport {
     const DEFAULT_SERVER_PATH = '/opt/mapepire/lib/mapepire/mapepire-server.jar';
     const effectiveServerPath = resolvedServerPath || serverPath || DEFAULT_SERVER_PATH;
 
+    // Store teardown so close() can end the internally-owned SSH client (if any).
+    this.teardown = options.teardown;
+
     const config: SSHSingleConfig = {
       exec: options.exec,
       serverPath: effectiveServerPath,
@@ -425,6 +429,13 @@ export class SSHSingleTransport extends BaseTransport {
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
     this.debugLog('connection closed');
+
+    // If this transport owns the SSH client (created via SQLJob.ssh2/nodeSSH),
+    // tear it down now that the channel is fully closed.
+    if (this.teardown) {
+      this.teardown();
+      this.teardown = undefined;
+    }
   }
 
 }
