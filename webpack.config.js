@@ -19,6 +19,12 @@ module.exports = {
   node: {
     __dirname: false // leave the __dirname-behaviour intact
   },
+  // ssh2 and node-ssh are optional peer deps with native binaries — never bundle them.
+  // Consumers install whichever library they use; we emit a passthrough require() call.
+  externals: {
+    'ssh2': 'commonjs ssh2',
+    'node-ssh': 'commonjs node-ssh',
+  },
   context: path.join(__dirname),
   resolve: {
     // Add `.ts` as a resolvable extension.

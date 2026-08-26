@@ -3,9 +3,12 @@
  * Library-agnostic transport that uses an exec function to launch mapepire-server in single mode
  */
 
+import path from "path";
 import { BaseTransport, TransportOptions } from "../transport";
 import { DaemonServer, ServerRequest, ServerResponse, SSHSingleConfig, ExecChannel } from "../types";
 import { LineBuffer } from "./lineBuffer";
+import { ensureServerInstalled } from "./serverInstaller";
+import { VERSION, SERVER_VERSION_FILE, JAR_SHA256 } from "../serverVersion";
 
 /**
  * Connection states for SSH single transport
@@ -34,7 +37,7 @@ export class SSHSingleTransport extends BaseTransport {
   private channel: ExecChannel | undefined;
   private lineBuffer: LineBuffer = new LineBuffer();
   private stderrBuffer: string = '';
-  private remoteCommand: string | undefined;
+  protected remoteCommand: string | undefined;
   private state: ConnectionState = ConnectionState.IDLE;
   private startupTimer: NodeJS.Timeout | undefined;
   private pendingHandshake: { resolve: () => void; reject: (err: Error) => void } | undefined;
@@ -294,7 +297,14 @@ export class SSHSingleTransport extends BaseTransport {
   }
 
   /**
-   * Establishes an SSH single connection
+   * Exposes the remote command used to launch the server (useful for testing/debugging).
+   */
+  getRemoteCommand(): string | undefined {
+    return this.remoteCommand;
+  }
+
+  /**
+   * Establishes an SSH single connection.
    * @param server - Server connection details (not used for ssh-single, kept for interface compatibility)
    * @param options - SSH single transport options
    */
@@ -303,10 +313,33 @@ export class SSHSingleTransport extends BaseTransport {
       throw new Error('SSH single transport requires an exec function in sshSingle config');
     }
 
-    const DEFAULT_SERVER_PATH = '/opt/mapepire/lib/mapepire/mapepire-server.jar';
-    const serverPath = options.serverPath || DEFAULT_SERVER_PATH;
-
     this.setState(ConnectionState.CONNECTING);
+
+    // --- Private install ---------------------------------------------------
+    // When serverPath is NOT explicitly provided AND an upload function IS provided,
+    // automatically ensure the bundled JAR is installed on the remote system
+    // at $HOME/.mapepire/ before launching.
+    let resolvedServerPath = options.serverPath;
+
+    if (!resolvedServerPath && options.upload) {
+      // Resolve the local bundled JAR path (sits next to the compiled dist output).
+      // Note: __dirname is only available in CJS. This package is compiled as CJS
+      // (see tsconfig "module": "commonjs"), so this is safe. If ESM support is
+      // ever added, replace with: new URL('../../dist', import.meta.url).pathname
+      const localJarPath = path.join(__dirname, '..', '..', 'dist', SERVER_VERSION_FILE);
+
+      resolvedServerPath = await ensureServerInstalled({
+        exec: options.exec,
+        upload: options.upload,
+        localJarPath,
+        version: VERSION,
+        jarSha256: JAR_SHA256,
+        remoteInstallDir: options.privateInstallDir,
+      });
+    }
+
+    const DEFAULT_SERVER_PATH = '/opt/mapepire/lib/mapepire/mapepire-server.jar';
+    const serverPath = resolvedServerPath || DEFAULT_SERVER_PATH;
 
     const config: SSHSingleConfig = {
       exec: options.exec,
