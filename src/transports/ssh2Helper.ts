@@ -6,7 +6,7 @@
  */
 
 import type { Client, ConnectConfig } from 'ssh2';
-import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from '../types';
+import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig, MapepireConfig } from '../types';
 
 /**
  * Creates an exec function from a connected ssh2 Client instance.
@@ -178,4 +178,43 @@ export function connectSSH2(options: ConnectConfig): Promise<Client> {
     client.on('error', reject);
     client.connect(options);
   });
+}
+
+/**
+ * Creates a MapepireConfig suitable for use with Pool when using ssh2.
+ *
+ * Bundles `exec` and `upload` from the shared SSH client so the Pool can
+ * run private install once and then start all N jobs in parallel.
+ * `teardown` is intentionally absent — the Pool does not own the SSH client.
+ * The caller must call `client.end()` after `pool.end()` returns.
+ *
+ * @param client - Connected ssh2 Client (shared across all pool jobs)
+ * @param extraOptions - Any SSHSingleConfig fields except exec, upload, and teardown
+ * @returns MapepireConfig ready to pass as `Pool({ config: ... })`
+ *
+ * @example
+ * ```typescript
+ * import { connectSSH2, createSSH2PoolConfig, Pool } from '@ibm/mapepire-js';
+ *
+ * const client = await connectSSH2({ host: 'ibm-i.example.com', username: 'USER', password: 'PASS' });
+ * const pool = new Pool({
+ *   config: createSSH2PoolConfig(client),
+ *   maxSize: 5,
+ *   startingSize: 5,  // pre-warm all jobs — JVM boot is expensive
+ * });
+ * await pool.init();
+ * // ... use pool ...
+ * await pool.end();
+ * client.end();  // caller closes SSH client after pool
+ * ```
+ */
+export function createSSH2PoolConfig(
+  client: Client,
+  extraOptions?: Omit<SSHSingleConfig, 'exec' | 'upload' | 'teardown'>
+): MapepireConfig {
+  const sshSingle: SSHSingleConfig = {
+    ...createSSH2Connection(client),
+    ...extraOptions,
+  };
+  return { transport: 'ssh-single', sshSingle };
 }
