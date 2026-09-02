@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SSHSingleTransport } from '../src/transports/sshSingleTransport';
-import { ExecChannel, DaemonServer } from '../src/types';
-import { EventEmitter } from 'events';
+import { ExecChannel, DaemonServer, ExecFunction } from '../src/types';
 import { Readable, Writable } from 'stream';
 
 /**
@@ -108,11 +107,11 @@ function simulateHandshake(channel: MockExecChannel, delayMs: number = TEST_HAND
 async function createConnectedTransport(): Promise<{
   transport: SSHSingleTransport;
   channel: MockExecChannel;
-  exec: ReturnType<typeof vi.fn>;
+  exec: ExecFunction;
 }> {
   const transport = new SSHSingleTransport();
   const channel = new MockExecChannel();
-  const exec = vi.fn().mockResolvedValue(channel);
+  const exec = vi.fn().mockResolvedValue(channel) as unknown as ExecFunction;
   
   const server: DaemonServer = {
     host: 'localhost',
@@ -134,12 +133,14 @@ async function createConnectedTransport(): Promise<{
 describe('SSHSingleTransport', () => {
   let transport: SSHSingleTransport;
   let mockChannel: MockExecChannel;
-  let mockExec: ReturnType<typeof vi.fn>;
+  let mockExecRaw: ReturnType<typeof vi.fn>;
+  let mockExec: ExecFunction;
 
   beforeEach(() => {
     transport = new SSHSingleTransport();
     mockChannel = new MockExecChannel();
-    mockExec = vi.fn().mockResolvedValue(mockChannel);
+    mockExecRaw = vi.fn().mockResolvedValue(mockChannel);
+    mockExec = mockExecRaw as unknown as ExecFunction;
   });
 
   afterEach(async () => {
@@ -181,7 +182,7 @@ describe('SSHSingleTransport', () => {
       expect(mockExec).toHaveBeenCalledWith(
         expect.stringContaining('-jar')
       );
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('/path/to/mapepire-server.jar');
       expect(command).toContain('--single');
     });
@@ -209,7 +210,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, { exec: mockExec } as any);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('/opt/mapepire/lib/mapepire/mapepire-server.jar');
     });
 
@@ -252,7 +253,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('-Xmx512m');
       expect(command).toContain('-Dfile.encoding=UTF-8');
     });
@@ -274,7 +275,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('--trace');
       expect(command).toContain('--verbose');
     });
@@ -306,7 +307,7 @@ describe('SSHSingleTransport', () => {
         password: ''
       };
 
-      const failingExec = vi.fn().mockRejectedValue(new Error('SSH connection failed'));
+      const failingExec = vi.fn().mockRejectedValue(new Error('SSH connection failed')) as unknown as ExecFunction;
 
       const options = {
         exec: failingExec,
@@ -548,7 +549,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain("'/java path/bin/java'");
       expect(command).toContain("'/path with spaces/server.jar'");
     });
@@ -570,7 +571,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('cd');
       expect(command).toContain('/home/user/mapepire');
     });
@@ -595,7 +596,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExec.mock.calls[0][0];
+      const command = mockExecRaw.mock.calls[0][0];
       expect(command).toContain('JAVA_HOME');
       expect(command).toContain('/opt/java');
       expect(command).toContain('PATH');
