@@ -181,7 +181,7 @@ describe('SSHSingleTransport', () => {
       expect(mockExec).toHaveBeenCalledWith(
         expect.stringContaining('-jar')
       );
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('/path/to/mapepire-server.jar');
       expect(command).toContain('--single');
     });
@@ -209,7 +209,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, { exec: mockExec } as any);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('/opt/mapepire/lib/mapepire/mapepire-server.jar');
     });
 
@@ -252,7 +252,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('-Xmx512m');
       expect(command).toContain('-Dfile.encoding=UTF-8');
     });
@@ -274,7 +274,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('--trace');
       expect(command).toContain('--verbose');
     });
@@ -548,7 +548,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain("'/java path/bin/java'");
       expect(command).toContain("'/path with spaces/server.jar'");
     });
@@ -570,7 +570,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('cd');
       expect(command).toContain('/home/user/mapepire');
     });
@@ -595,7 +595,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('JAVA_HOME');
       expect(command).toContain('/opt/java');
       expect(command).toContain('PATH');
