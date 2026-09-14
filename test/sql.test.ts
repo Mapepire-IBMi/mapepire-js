@@ -56,7 +56,7 @@ test("Run an SQL Query with a large number", async () => {
   await job.connect(creds);
 
   const bigNumber = "80000000000000000002";
-  const query = await job.query<any>(`values ${bigNumber.toString()}`);
+  const query = await job.query<any>(`values ${bigNumber}`);
   const res = await query.execute();
   await query.close();
   await job.close();
