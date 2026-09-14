@@ -179,7 +179,7 @@ export class SSHSingleTransport extends BaseTransport {
     try {
       const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
         if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
-          return BigInt(context.source);
+          return context.source;
         }
         return value;
       })as any);

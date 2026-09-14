@@ -55,14 +55,14 @@ test("Run an SQL Query with a large number", async () => {
   const job = new SQLJob();
   await job.connect(creds);
 
-  const bigNumber = BigInt("80000000000000000002");
+  const bigNumber = "80000000000000000002";
   const query = await job.query<any>(`values ${bigNumber.toString()}`);
   const res = await query.execute();
   await query.close();
   await job.close();
 
   expect(res.data.length).toBe(1);
-  expect(BigInt(res.data[0]["00001"])).toBe(bigNumber);
+  expect(res.data[0]["00001"]).toBe(bigNumber);
   expect(res.success).toBe(true);
   expect(res.is_done).toBe(true);
 });
