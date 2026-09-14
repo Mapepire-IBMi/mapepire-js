@@ -177,7 +177,12 @@ export class SSHSingleTransport extends BaseTransport {
     this.debugLog('received line', { line });
 
     try {
-      const response: ServerResponse = JSON.parse(line);
+      const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
+        if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
+          return BigInt(context.source);
+        }
+        return value;
+      })as any);
       
       // If we're handshaking and receive a valid response, consider handshake complete
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {

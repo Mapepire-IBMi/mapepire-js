@@ -4,10 +4,10 @@ import { DaemonServer, ServerRequest, ServerResponse, LocalSingleConfig } from '
 import { LineBuffer } from './lineBuffer';
 
 enum ConnectionState {
-  IDLE       = 'idle',
+  IDLE = 'idle',
   HANDSHAKING = 'handshaking',
-  READY      = 'ready',
-  CLOSED     = 'closed',
+  READY = 'ready',
+  CLOSED = 'closed',
 }
 
 import {
@@ -18,7 +18,7 @@ import {
   ensureSingleFlag,
 } from './utils';
 
-export interface LocalSingleTransportOptions extends TransportOptions, Partial<LocalSingleConfig> {}
+export interface LocalSingleTransportOptions extends TransportOptions, Partial<LocalSingleConfig> { }
 
 /**
  * Spawns mapepire-server with --single flag as a child process and communicates
@@ -83,7 +83,12 @@ export class LocalSingleTransport extends BaseTransport {
     this.debugLog('recv', line);
 
     try {
-      const response: ServerResponse = JSON.parse(line);
+      const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
+        if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
+          return BigInt(context.source);
+        }
+        return value;
+      }) as any);
 
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.setState(ConnectionState.READY);
