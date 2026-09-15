@@ -178,6 +178,7 @@ export class SSHSingleTransport extends BaseTransport {
 
     try {
       const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
+        // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
         if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
           return context.source;
         }
