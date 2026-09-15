@@ -13,7 +13,7 @@
 
 import { Octokit } from '@octokit/rest';
 import { createHash } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { SERVER_FILE_PREFIX, SERVER_VERSION_FILE, SERVER_VERSION_TAG } from '../src/serverVersion';
 
@@ -40,15 +40,15 @@ function computeSha256(buffer: Buffer): string {
 
 function patchSha256InSource(sha256: string): void {
   const src = readFileSync(serverVersionSrc, 'utf8');
-  const patched = src.replace(
-    /^export const JAR_SHA256 = `[^`]*`;/m,
-    `export const JAR_SHA256 = \`${sha256}\`;`
-  );
-  if (patched === src) {
+  const regex = /^export\s+const\s+JAR_SHA256\s*=\s*[`'"][^`'"]*[`'"];?/m;
+  if (!regex.test(src)) {
     throw new Error(`Could not find JAR_SHA256 constant in ${serverVersionSrc} to patch`);
   }
-  writeFileSync(serverVersionSrc, patched, 'utf8');
-  console.log(`Patched JAR_SHA256 in ${serverVersionSrc}`);
+  const patched = src.replace(regex, `export const JAR_SHA256 = \`${sha256}\`;`);
+  if (patched !== src) {
+    writeFileSync(serverVersionSrc, patched, 'utf8');
+    console.log(`Patched JAR_SHA256 in ${serverVersionSrc}`);
+  }
 }
 
 async function work(): Promise<void> {
@@ -57,8 +57,8 @@ async function work(): Promise<void> {
     mkdirSync(distDirectory, { recursive: true });
   }
 
-  // Idempotent: skip download if JAR already present
-  if (existsSync(serverFilePath)) {
+  // Idempotent: skip download if JAR already present and not empty
+  if (existsSync(serverFilePath) && statSync(serverFilePath).size > 0) {
     console.log(`Server JAR already present: ${SERVER_VERSION_FILE}`);
     // Still compute and patch SHA256 in case it was cleared
     const buffer = readFileSync(serverFilePath);

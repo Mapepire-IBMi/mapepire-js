@@ -33,9 +33,10 @@
   "scripts": {
     "test": "vitest run --bail 5",
     "prepack": "npx tsx scripts/downloadServer.ts",
+    "build": "npm run prepack && npm run webpack",
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
-    "deploy": "npm run webpack && npm i && npm publish --access public"
+    "deploy": "npm run build && npm i && npm publish --access public"
   },
   "files": [
     "dist/**",

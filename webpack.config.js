@@ -20,6 +20,10 @@ module.exports = {
     __dirname: false // leave the __dirname-behaviour intact
   },
   context: path.join(__dirname),
+  externals: {
+    'ssh2': 'commonjs ssh2',
+    'node-ssh': 'commonjs node-ssh'
+  },
   resolve: {
     // Add `.ts` as a resolvable extension.
     extensions: [".ts", ".js"],

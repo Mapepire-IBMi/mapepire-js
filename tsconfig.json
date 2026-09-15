@@ -6,9 +6,12 @@
 		"noUnusedParameters": false,
 		"strict": false,
 		"allowJs": true,
+		"rootDir": "./",
 		"outDir": "./dist",
 		"esModuleInterop": true,
 		"sourceMap": true,
-		"declaration": true,
+		"declaration": true
 	},
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "scripts"]
 }
