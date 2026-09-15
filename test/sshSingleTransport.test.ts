@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { SSHSingleTransport } from '../src/transports/sshSingleTransport';
-import { ExecChannel, DaemonServer, ExecFunction } from '../src/types';
+import { ExecChannel, DaemonServer, ExecFunction, UploadFunction } from '../src/types';
+import { EventEmitter } from 'events';
 import { Readable, Writable } from 'stream';
 
 /**
@@ -133,14 +134,12 @@ async function createConnectedTransport(): Promise<{
 describe('SSHSingleTransport', () => {
   let transport: SSHSingleTransport;
   let mockChannel: MockExecChannel;
-  let mockExecRaw: ReturnType<typeof vi.fn>;
-  let mockExec: ExecFunction;
+  let mockExec: Mock & ExecFunction;
 
   beforeEach(() => {
     transport = new SSHSingleTransport();
     mockChannel = new MockExecChannel();
-    mockExecRaw = vi.fn().mockResolvedValue(mockChannel);
-    mockExec = mockExecRaw as unknown as ExecFunction;
+    mockExec = vi.fn().mockResolvedValue(mockChannel) as unknown as Mock & ExecFunction;
   });
 
   afterEach(async () => {
@@ -182,7 +181,7 @@ describe('SSHSingleTransport', () => {
       expect(mockExec).toHaveBeenCalledWith(
         expect.stringContaining('-jar')
       );
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('/path/to/mapepire-server.jar');
       expect(command).toContain('--single');
     });
@@ -210,7 +209,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, { exec: mockExec } as any);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('/opt/mapepire/lib/mapepire/mapepire-server.jar');
     });
 
@@ -253,7 +252,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('-Xmx512m');
       expect(command).toContain('-Dfile.encoding=UTF-8');
     });
@@ -275,7 +274,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('--trace');
       expect(command).toContain('--verbose');
     });
@@ -549,7 +548,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain("'/java path/bin/java'");
       expect(command).toContain("'/path with spaces/server.jar'");
     });
@@ -571,7 +570,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('cd');
       expect(command).toContain('/home/user/mapepire');
     });
@@ -596,7 +595,7 @@ describe('SSHSingleTransport', () => {
 
       await transport.connect(server, options);
 
-      const command = mockExecRaw.mock.calls[0][0];
+      const command = mockExec.mock.calls[0][0];
       expect(command).toContain('JAVA_HOME');
       expect(command).toContain('/opt/java');
       expect(command).toContain('PATH');
@@ -606,3 +605,61 @@ describe('SSHSingleTransport', () => {
 });
 
 
+
+// ---------------------------------------------------------------------------
+// Sub-Task 7 — Integration: SSHSingleTransport private install wiring
+// ---------------------------------------------------------------------------
+
+// Mock ensureServerInstalled so this test only verifies the wiring in
+// SSHSingleTransport.connect() — not installer internals (covered in serverInstaller.test.ts).
+vi.mock('../src/transports/serverInstaller', () => ({
+  ensureServerInstalled: vi.fn().mockResolvedValue('/home/ibmiuser/.mapepire/mapepire-server-mocked.jar'),
+}));
+
+describe('SSHSingleTransport – private install', () => {
+  const MOCKED_REMOTE_JAR = '/home/ibmiuser/.mapepire/mapepire-server-mocked.jar';
+
+  it('calls ensureServerInstalled and uses returned path in launch command', async () => {
+    const serverChannel = new MockExecChannel();
+    const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
+    const exec   = vi.fn().mockResolvedValue(serverChannel) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    simulateHandshake(serverChannel);
+    await transport.connect(server, { exec, upload });
+
+    // Launch command must use the path returned by ensureServerInstalled
+    const remoteCmd = transport.getRemoteCommand();
+    expect(remoteCmd).toContain(MOCKED_REMOTE_JAR);
+    expect(remoteCmd).toContain('--single');
+    expect(transport.isConnected()).toBe(true);
+
+    await transport.close();
+  });
+
+  it('skips ensureServerInstalled when serverPath is explicitly provided', async () => {
+    const serverChannel = new MockExecChannel();
+    const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
+    const exec   = vi.fn().mockResolvedValue(serverChannel) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    simulateHandshake(serverChannel);
+    await transport.connect(server, {
+      exec,
+      upload,
+      serverPath: '/explicit/path/mapepire-server.jar',
+    });
+
+    // Launch command must use the explicit path, not the mocked installer path
+    const remoteCmd = transport.getRemoteCommand();
+    expect(remoteCmd).toContain('/explicit/path/mapepire-server.jar');
+    expect(remoteCmd).not.toContain(MOCKED_REMOTE_JAR);
+    expect(transport.isConnected()).toBe(true);
+
+    await transport.close();
+  });
+});
