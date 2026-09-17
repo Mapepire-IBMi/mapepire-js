@@ -52,9 +52,15 @@ export class WebSocketTransport extends BaseTransport {
       ws.on("message", (data: Buffer) => {
         const asString = data.toString();
         this.trace(asString);
-        
+
         try {
-          const response: ServerResponse = JSON.parse(asString);
+          const response: ServerResponse = JSON.parse(asString, ((key: any, value: string, context: any) => {
+            // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
+            if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
+              return context.source;
+            }
+            return value;
+          }) as any);
           this.emitResponse(response);
         } catch (e: any) {
           console.error(`Error parsing response: ` + e);

@@ -180,7 +180,13 @@ export class SSHSingleTransport extends BaseTransport {
     this.debugLog('received line', { line });
 
     try {
-      const response: ServerResponse = JSON.parse(line);
+      const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
+        // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
+        if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
+          return context.source;
+        }
+        return value;
+      })as any);
       
       // If we're handshaking and receive a valid response, consider handshake complete
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
