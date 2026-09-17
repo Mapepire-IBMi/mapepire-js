@@ -4,8 +4,8 @@
  *
  * Mirrors vscode-ibmi/tools/downloadMapepire.ts with SHA-256 patch-back added.
  *
- * Run automatically via the "prepack" npm script before `npm pack` / `npm publish`.
- * Never runs on the consumer's machine — the JAR ships inside the npm tarball.
+ * Run automatically via the "prepare" npm script before `npm pack` / `npm publish`.
+ * Skipped when the package is installed as a dependency (consumer machines).
  *
  * Usage:
  *   npx tsx scripts/downloadServer.ts
@@ -15,7 +15,7 @@ import { Octokit } from '@octokit/rest';
 import { createHash } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
-import { SERVER_FILE_PREFIX, SERVER_VERSION_FILE, SERVER_VERSION_TAG } from '../src/serverVersion';
+import { JAR_SHA256, SERVER_FILE_PREFIX, SERVER_VERSION_FILE, SERVER_VERSION_TAG } from '../src/serverVersion';
 
 const OWNER = 'Mapepire-IBMi';
 const REPO  = 'mapepire-server';
@@ -57,15 +57,16 @@ async function work(): Promise<void> {
     mkdirSync(distDirectory, { recursive: true });
   }
 
-  // Idempotent: skip download if JAR already present and not empty
+  // Idempotent: skip download if JAR already present and hash matches expected
   if (existsSync(serverFilePath) && statSync(serverFilePath).size > 0) {
-    console.log(`Server JAR already present: ${SERVER_VERSION_FILE}`);
-    // Still compute and patch SHA256 in case it was cleared
     const buffer = readFileSync(serverFilePath);
     const sha256 = computeSha256(buffer);
-    patchSha256InSource(sha256);
-    console.log(`SHA-256: ${sha256}`);
-    return;
+    if (sha256 === JAR_SHA256) {
+      console.log(`Server JAR already present and verified: ${SERVER_VERSION_FILE}`);
+      console.log(`SHA-256: ${sha256}`);
+      return;
+    }
+    console.log(`Cached JAR hash mismatch (expected ${JAR_SHA256}, got ${sha256}), re-downloading…`);
   }
 
   const octokit = new Octokit();
