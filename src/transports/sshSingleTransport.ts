@@ -302,11 +302,13 @@ export class SSHSingleTransport extends BaseTransport {
     let resolvedServerPath = options.serverPath;
 
     if (!resolvedServerPath && options.upload) {
-      // Resolve the local bundled JAR path (sits next to the compiled dist output).
+      // Resolve the local bundled JAR path.
+      // The JAR is bundled into the same dist/ directory as index.js, so __dirname
+      // (which equals the dist/ folder at runtime) is the correct base — no traversal.
       // Note: __dirname is only available in CJS. This package is compiled as CJS
       // (see tsconfig "module": "commonjs"), so this is safe. If ESM support is
-      // ever added, replace with: new URL('../../dist', import.meta.url).pathname
-      const localJarPath = path.join(__dirname, '..', '..', 'dist', SERVER_VERSION_FILE);
+      // ever added, replace with: new URL('.', import.meta.url).pathname
+      const localJarPath = path.join(__dirname, SERVER_VERSION_FILE);
 
       resolvedServerPath = await ensureServerInstalled({
         exec: options.exec,
