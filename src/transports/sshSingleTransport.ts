@@ -35,7 +35,7 @@ enum ConnectionState {
 /**
  * SSH Single transport options
  */
-export interface SSHSingleTransportOptions extends TransportOptions, Partial<SSHSingleConfig> {}
+export interface SSHSingleTransportOptions extends TransportOptions, Partial<SSHSingleConfig> { }
 
 /**
  * SSH Single Transport implementation
@@ -80,8 +80,8 @@ export class SSHSingleTransport extends BaseTransport {
         const lowerKey = key.toLowerCase();
         // Redact sensitive fields
         if (lowerKey.includes('password') || lowerKey.includes('token') ||
-            lowerKey.includes('secret') || lowerKey.includes('credential') ||
-            lowerKey.includes('key')) {
+          lowerKey.includes('secret') || lowerKey.includes('credential') ||
+          lowerKey.includes('key')) {
           sanitized[key] = '***';
         } else {
           sanitized[key] = this.sanitizeForDebug(value);
@@ -167,7 +167,7 @@ export class SSHSingleTransport extends BaseTransport {
     this.trace(`stdout: ${text}`);
 
     const lines = this.lineBuffer.push(text);
-    
+
     for (const line of lines) {
       this.handleProtocolLine(line);
     }
@@ -182,12 +182,12 @@ export class SSHSingleTransport extends BaseTransport {
     try {
       const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
         // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
-        if (context && typeof value === 'number' && !Number.isSafeInteger(value)) {
+        if (context && typeof value === 'number' && String(value) !== context.source) {
           return context.source;
         }
         return value;
-      })as any);
-      
+      }) as any);
+
       // If we're handshaking and receive a valid response, consider handshake complete
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.debugLog('handshake complete');
@@ -195,7 +195,7 @@ export class SSHSingleTransport extends BaseTransport {
         this.connected = true;
         this.pendingHandshake.resolve();
         this.pendingHandshake = undefined;
-        
+
         if (this.startupTimer) {
           clearTimeout(this.startupTimer);
           this.startupTimer = undefined;
@@ -205,7 +205,7 @@ export class SSHSingleTransport extends BaseTransport {
       this.emitResponse(response);
     } catch (e: any) {
       this.debugLog('protocol parse error', { line, error: e.message });
-      
+
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.pendingHandshake.reject(new Error(`Protocol initialization failed: invalid JSON response: ${e.message}`));
         this.pendingHandshake = undefined;
@@ -227,12 +227,12 @@ export class SSHSingleTransport extends BaseTransport {
    */
   private handleExit(code: number | null, signal?: string): void {
     this.debugLog('remote process exited', { code, signal, stderr: this.stderrBuffer });
-    
+
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
 
     if (this.pendingHandshake) {
-      const errorMsg = this.stderrBuffer 
+      const errorMsg = this.stderrBuffer
         ? `Server process exited during startup: ${this.stderrBuffer}`
         : `Server process exited during startup with code ${code}`;
       this.pendingHandshake.reject(new Error(errorMsg));
@@ -267,7 +267,7 @@ export class SSHSingleTransport extends BaseTransport {
       };
 
       this.debugLog('sending handshake request', handshakeRequest);
-      
+
       try {
         const requestJson = JSON.stringify(handshakeRequest) + '\n';
         this.channel!.stdin.write(requestJson);
@@ -354,7 +354,7 @@ export class SSHSingleTransport extends BaseTransport {
 
     try {
       this.setState(ConnectionState.STARTING_SERVER);
-      
+
       // Execute the remote command
       this.channel = await config.exec(this.remoteCommand);
 
