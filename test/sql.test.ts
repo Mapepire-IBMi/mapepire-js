@@ -51,7 +51,7 @@ test("Run an SQL Query with Large Dataset", async () => {
   expect(res.metadata).toBeDefined(); // Metadata should be present
 });
 
-test("Run an SQL Query with large and small integers/decimals (avoids truncation)", async () => {
+test("Run an SQL Query with large and small integers/decimals avoids truncation", async () => {
   const job = new SQLJob();
   await job.connect(creds);
 
