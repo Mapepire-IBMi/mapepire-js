@@ -61,6 +61,11 @@ The current IBM i job's user profile is used automatically via `jdbc:default:con
 
 **Requires:** Node.js running on IBM i (`process.platform === 'os400'`)
 
+*If installation fails due to unsupported platform errors on IBM i, install using the `--force` flag instead:*
+```bash
+npm install @ibm/mapepire-js --force
+```
+
 **Auto-Detection:** When running on IBM i (`process.platform === 'os400'`), if no `transport` and no user credentials (`daemon.user` or `db2Server.user`) are supplied, Mapepire-JS automatically selects `local-single` transport.
 
 ```typescript
@@ -78,6 +83,27 @@ await job.connect();  // Spawns JVM as child process — no credentials needed
 const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
 await job.close();    // Sends exit request and kills child JVM
 ```
+
+> 💡 **Tip: Zero-Install (Using the Bundled JAR)**
+>
+> Unlike SSH Single transport, Local Single transport does not have a "private install/upload" step since it is already local to the IBM i.
+> If you do not have the global `mapepire-server` RPM package installed on your IBM i system, you can use the bundled JAR file shipped directly within `@ibm/mapepire-js`:
+>
+> ```javascript
+> const { SQLJob, SERVER_VERSION_FILE } = require('@ibm/mapepire-js');
+> const path = require('path');
+>
+> // Resolve the path of the bundled JAR in node_modules
+> const distPath = path.dirname(require.resolve('@ibm/mapepire-js'));
+> const bundledServerPath = path.join(distPath, SERVER_VERSION_FILE);
+>
+> const job = SQLJob.withConfig({
+>   transport: 'local-single',
+>   localSingle: {
+>     serverPath: bundledServerPath
+>   }
+> });
+> ```
 
 Need extra options? Spread the connection alongside them:
 
