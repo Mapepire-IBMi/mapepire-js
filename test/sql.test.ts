@@ -71,6 +71,10 @@ test("Run an SQL Query with large and small integers/decimals avoids truncation"
   const res4 = await job.execute(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
   expect(res4.data[0]["00001"]).toBe(smallDecimal);
 
+  const small2Decimal = "1.00";
+  const res5 = await job.execute(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
+  expect(res5.data[0]["00001"]).toBe(small2Decimal);
+
   await job.close();
 });
 
