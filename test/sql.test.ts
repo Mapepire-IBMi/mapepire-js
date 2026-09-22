@@ -51,20 +51,27 @@ test("Run an SQL Query with Large Dataset", async () => {
   expect(res.metadata).toBeDefined(); // Metadata should be present
 });
 
-test("Run an SQL Query with a large number", async () => {
+test("Run an SQL Query with large and small integers/decimals (avoids truncation)", async () => {
   const job = new SQLJob();
   await job.connect(creds);
 
-  const bigNumber = "80000000000000000002";
-  const query = await job.query<any>(`values ${bigNumber}`);
-  const res = await query.execute();
-  await query.close();
-  await job.close();
+  const largeInteger = "123456789012345678901";
+  const res1 = await job.execute(`values(cast('${largeInteger}' as numeric(21,0)))`);
+  expect(res1.data[0]["00001"]).toBe(largeInteger);
 
-  expect(res.data.length).toBe(1);
-  expect(res.data[0]["00001"]).toBe(bigNumber);
-  expect(res.success).toBe(true);
-  expect(res.is_done).toBe(true);
+  const largeDecimal = "123456789012345678901.1";
+  const res2 = await job.execute(`values(cast('${largeDecimal}' as decimal(22, 1)))`);
+  expect(res2.data[0]["00001"]).toBe(largeDecimal);
+
+  const smallInteger = 12345;
+  const res3 = await job.execute(`values(cast('${smallInteger}' as numeric(5,0)))`);
+  expect(res3.data[0]["00001"]).toBe(smallInteger);
+
+  const smallDecimal = 123.45;
+  const res4 = await job.execute(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
+  expect(res4.data[0]["00001"]).toBe(smallDecimal);
+
+  await job.close();
 });
 
 test("Run an SQL Query in Terse Format", async () => {
