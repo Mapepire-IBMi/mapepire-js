@@ -34,3 +34,20 @@ test("Invalid CL command", async () => {
   expect(res.sql_rc).toEqual(-443);
   expect(res.sql_state).toEqual("38501");
 });
+
+test("Get valid CL command documentation", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const res = await job.getClDoc("/QSYS.LIB/CRTLIB.CMD");
+  await job.close();
+  expect(res.success).toBe(true);
+  expect(res.html.includes("<title>Create Library  (CRTLIB)</title>")).toBeTruthy();
+  expect(res.uim.includes("Help for command CRTLIB")).toBeTruthy();
+});
+
+test("Get invalid CL command documentation", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  await expect(job.getClDoc("/QSYS.LIB/INVALID.CMD")).rejects.toThrow("CPF9801 Object INVALID in library QSYS not found.");
+  await job.close();
+});
