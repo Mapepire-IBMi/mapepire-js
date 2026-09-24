@@ -103,7 +103,15 @@ beforeAll(async () => {
 
   schema = (creds.user as string).toUpperCase();
 
-  // Clean up any rows left over from a previous failed run (ignore if table is missing)
+  // Ensure the prerequisite table exists — creates it on first run on any system
+  await job.execute(
+    `CREATE TABLE IF NOT EXISTS ${SMALL_TABLE()} ` +
+    `( ID INTEGER GENERATED ALWAYS AS IDENTITY, JBLOB BLOB(100) )`
+  ).catch(() => {
+    // Older DB2 for i releases may not support IF NOT EXISTS — fall back gracefully
+  });
+
+  // Clean up any rows left over from a previous failed run
   await job.execute(`DELETE FROM ${SMALL_TABLE()}`).catch(() => {});
 });
 
