@@ -1,4 +1,4 @@
-import { beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
@@ -22,6 +22,23 @@ beforeAll(async () => {
     // ignore
   } finally {
     await schemaQuery.close();
+    await job.close();
+  }
+});
+
+afterAll(async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  const schemaQuery = job.query<any[]>(`drop schema ${TEST_SCHEMA} cascade`);
+
+  try {
+    await schemaQuery.execute();
+  } catch (e) {
+    // ignore
+  } finally {
+    await schemaQuery.close();
+    await job.close();
   }
 });
 
