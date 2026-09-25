@@ -4,6 +4,7 @@ import {
   ConnectionResult,
   DaemonServer,
   ExplainResults,
+  GetClDocResult,
   GetTraceDataResult,
   JDBCOptions,
   JobLogEntry,
@@ -431,6 +432,28 @@ export class SQLJob {
    */
   clcommand(cmd: string): Query<any> {
     return new Query(this, cmd, { isClCommand: true });
+  }
+
+  /**
+   * Retrieves HTML and UIM documentation for a CL command.
+   *
+   * @param path - The fully qualified IFS path of the command object (e.g. `/QSYS.LIB/CRTLIB.CMD`).
+   * @returns A promise that resolves to the CL command documentation result.
+   */
+  async getClDoc(path: string): Promise<GetClDocResult> {
+    const reqObj = {
+      id: SQLJob.getNewUniqueId(),
+      type: `getcldoc`,
+      path,
+    };
+
+    const result = await this.send<GetClDocResult>(reqObj);
+
+    if (result.success !== true) {
+      throw new Error(result.error || `Failed to get CL command documentation`);
+    }
+
+    return result;
   }
 
   /**

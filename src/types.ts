@@ -326,6 +326,15 @@ export interface CLCommandResult extends ServerResponse {
   joblog: JobLogEntry[];
 }
 
+/** Interface representing the result of a CL command documentation request. */
+export interface GetClDocResult extends ServerResponse {
+  /** The command help documentation in HTML format. */
+  html: string;
+
+  /** The command help documentation in UIM format. */
+  uim: string;
+}
+
 /** Interface representing metadata about a query. */
 export interface QueryMetaData {
   /** Number of columns returned by the query. */
