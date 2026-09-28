@@ -1,6 +1,15 @@
-import { EventEmitter } from "stream";
 import * as https from "https";
+import type { Config as NodeSSHConfig } from "node-ssh";
+import type { ConnectConfig as SSH2ConnectConfig } from "ssh2";
+import { EventEmitter } from "stream";
 import { Query } from "./query";
+import { ExplainType, JobStatus, TransactionEndType } from "./states";
+import { Transport } from "./transport";
+import { LocalSingleTransport } from "./transports/localSingleTransport";
+import { connectNodeSSH, createNodeSSHConnection } from "./transports/nodeSSHHelper";
+import { connectSSH2, createSSH2Connection } from "./transports/ssh2Helper";
+import { SSHSingleTransport } from "./transports/sshSingleTransport";
+import { WebSocketTransport } from "./transports/websocket";
 import {
   BlobRef,
   ConnectionResult,
@@ -10,24 +19,14 @@ import {
   GetTraceDataResult,
   JDBCOptions,
   JobLogEntry,
+  MapepireConfig,
   QueryOptions,
+  ServerRequest,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
-  ServerRequest,
-  VersionCheckResult,
-  ServerResponse,
-  MapepireConfig
+  VersionCheckResult
 } from "./types";
-import { ExplainType, JobStatus, TransactionEndType } from "./states";
-import { Transport } from "./transport";
-import { WebSocketTransport } from "./transports/websocket";
-import { SSHSingleTransport } from "./transports/sshSingleTransport";
-import { LocalSingleTransport } from "./transports/localSingleTransport";
-import { connectSSH2, createSSH2Connection } from "./transports/ssh2Helper";
-import { connectNodeSSH, createNodeSSHConnection } from "./transports/nodeSSHHelper";
-import type { ConnectConfig as SSH2ConnectConfig } from "ssh2";
-import type { Config as NodeSSHConfig } from "node-ssh";
 
 const TransactionCountQuery = [
   `select count(*) as thecount`,
@@ -209,7 +208,7 @@ export class SQLJob {
         removeListeners();
         reject(error);
       });
-      
+
       // Send the request after registering listeners
       this.transport.send(content);
     });
@@ -238,9 +237,10 @@ export class SQLJob {
    * Connects to the specified DB2 server and initializes the SQL job.
    *
    * @param db2Server - The server details for the connection.
+   * @param application - Application name that is sent to the host as part of logon for connection tracking.
    * @returns A promise that resolves to the connection result.
    */
-  async connect(db2Server?: DaemonServer): Promise<ConnectionResult> {
+  async connect(db2Server?: DaemonServer, application?: string): Promise<ConnectionResult> {
     this.status = JobStatus.CONNECTING;
 
     const config = this._mapepireConfig;
@@ -300,7 +300,7 @@ export class SQLJob {
         technique = 'tcp';
       }
     }
-    
+
     // Store the DaemonServer so fetchBlob can use it (only set for websocket/daemon connections)
     if (db2Server) {
       this.db2Server = db2Server;
@@ -310,10 +310,10 @@ export class SQLJob {
 
     // Connect the transport
     await this.transport.connect(connectionParams, transportOptions);
-    
+
     // Wire up the response emitter from the transport
     this.responseEmitter = this.transport.getResponseEmitter();
-    
+
     // Set up error handler for WebSocket transport (backward compatibility)
     if (this.transport instanceof WebSocketTransport) {
       this.transport.onError((err) => {
@@ -336,7 +336,7 @@ export class SQLJob {
       id: SQLJob.getNewUniqueId(),
       type: `connect`,
       technique: technique,
-      application: `Node.js client`,
+      application: application || `Node.js client`,
       props: props.length > 0 ? props : undefined,
     };
 
