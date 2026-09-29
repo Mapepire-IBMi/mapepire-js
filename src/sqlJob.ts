@@ -37,6 +37,8 @@ const TransactionCountQuery = [
 
 export const DEFAULT_PORT = 8076;
 
+export const DEFAULT_APPLICATION_NAME = `Node.js client`;
+
 /**
  * Represents a SQL job that manages connections and queries to a database.
  */
@@ -336,7 +338,7 @@ export class SQLJob {
       id: SQLJob.getNewUniqueId(),
       type: `connect`,
       technique: technique,
-      application: application || `Node.js client`,
+      application: application || DEFAULT_APPLICATION_NAME,
       props: props.length > 0 ? props : undefined,
     };
 

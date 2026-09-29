@@ -3,6 +3,7 @@ import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
+import { DEFAULT_APPLICATION_NAME } from "../src/sqlJob";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 let invalidCreds: DaemonServer = {
@@ -554,3 +555,20 @@ test(
     await job.close();
   }
 );
+
+test("Default and custom application name", async () => {
+  // Default application name
+  const job1 = new SQLJob();
+  await job1.connect(creds);
+  const res1 = await job1.execute(`VALUES CURRENT CLIENT_APPLNAME`);
+  await job1.close();
+  expect(res1.data[0]["00001"]).toBe(DEFAULT_APPLICATION_NAME);
+
+  // Custom application name 
+  const customApplicationName = `Mapepire-js Tests`;
+  const job2 = new SQLJob();
+  await job2.connect(creds, customApplicationName);
+  const res2 = await job2.execute(`VALUES CURRENT CLIENT_APPLNAME`);
+  await job2.close();
+  expect(res2.data[0]["00001"]).toBe(customApplicationName);
+});
