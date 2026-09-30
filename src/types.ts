@@ -69,7 +69,8 @@ export interface SSHSingleConfig {
   exec: ExecFunction;
   
   /** Path to the mapepire-server JAR file on the remote system.
-   *  Defaults to /opt/mapepire/lib/mapepire/mapepire-server.jar */
+   *  When omitted and privateInstall is true, private install will be used if an upload function is available.
+   *  Defaults to /opt/mapepire/lib/mapepire/mapepire-server.jar when private install is not used. */
   serverPath?: string;
   
   /** Path to Java executable on the remote system (optional, defaults to 'java') */
@@ -94,17 +95,24 @@ export interface SSHSingleConfig {
   requestTimeout?: number;
 
   /**
+   * Explicitly control private install behavior:
+   * - `true`: Force private install. Throws an error if `upload` is not provided.
+   *   If `serverPath` is also provided but the JAR does not exist on the remote host, logs a warning and falls back to private install.
+   * - `false`: Never attempt private install / upload. Uses `serverPath` or the default RPM path.
+   * - `undefined` (default): Auto mode. Uses private install if `upload` is provided and `serverPath` is not set; otherwise uses `serverPath`.
+   */
+  privateInstall?: boolean;
+
+  /**
    * Upload function for private install (from createSSH2Upload or createNodeSSHUpload).
-   * When provided and serverPath is not set, mapepire-js will automatically check
-   * whether the correct JAR version exists at $HOME/.mapepire on the remote system,
-   * upload it if absent or outdated, and launch from there.
+   * Required when privateInstall is true or when relying on automatic private install.
    */
   upload?: UploadFunction;
 
   /**
    * Override the remote install directory for private install.
    * Defaults to $HOME/.mapepire on the remote IBM i system.
-   * Only used when upload is provided and serverPath is not set.
+   * Only used during private install.
    */
   privateInstallDir?: string;
 

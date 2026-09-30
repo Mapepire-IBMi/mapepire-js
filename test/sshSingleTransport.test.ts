@@ -662,4 +662,113 @@ describe('SSHSingleTransport – private install', () => {
 
     await transport.close();
   });
+
+  it('throws an error if privateInstall is true but upload function is missing', async () => {
+    const serverChannel = new MockExecChannel();
+    const exec = vi.fn().mockResolvedValue(serverChannel) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    await expect(transport.connect(server, {
+      exec,
+      privateInstall: true,
+    })).rejects.toThrow('privateInstall is enabled but no upload function was provided in sshSingle config');
+  });
+
+  it('skips private install when privateInstall is false even if upload is provided', async () => {
+    const serverChannel = new MockExecChannel();
+    const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
+    const exec = vi.fn().mockResolvedValue(serverChannel) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    simulateHandshake(serverChannel);
+    await transport.connect(server, {
+      exec,
+      upload,
+      privateInstall: false,
+    });
+
+    const remoteCmd = transport.getRemoteCommand();
+    expect(remoteCmd).toContain('/opt/mapepire/lib/mapepire/mapepire-server.jar');
+    expect(remoteCmd).not.toContain(MOCKED_REMOTE_JAR);
+    expect(transport.isConnected()).toBe(true);
+
+    await transport.close();
+  });
+
+  it('falls back to private install and logs warning when privateInstall is true and serverPath is not found', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const serverChannel = new MockExecChannel();
+    const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
+    const exec = vi.fn().mockImplementation(async (cmd: string) => {
+      if (cmd.startsWith('test -f')) {
+        const testChannel = new MockExecChannel();
+        // Return channel with onExit immediately calling callback with 1
+        testChannel.onExit = (cb: (code: number | null, signal?: string) => void) => {
+          cb(1);
+        };
+        return testChannel;
+      }
+      return serverChannel;
+    }) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    simulateHandshake(serverChannel);
+    await transport.connect(server, {
+      exec,
+      upload,
+      privateInstall: true,
+      serverPath: '/non/existent/path/mapepire-server.jar',
+    });
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('serverPath "/non/existent/path/mapepire-server.jar" not found on remote system, falling back to private install.')
+    );
+
+    const remoteCmd = transport.getRemoteCommand();
+    expect(remoteCmd).toContain(MOCKED_REMOTE_JAR);
+    expect(transport.isConnected()).toBe(true);
+
+    consoleWarnSpy.mockRestore();
+    await transport.close();
+  });
+
+  it('uses serverPath when privateInstall is true and serverPath exists on remote system', async () => {
+    const serverChannel = new MockExecChannel();
+    const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
+    const exec = vi.fn().mockImplementation(async (cmd: string) => {
+      if (cmd.startsWith('test -f')) {
+        const testChannel = new MockExecChannel();
+        testChannel.onExit = (cb: (code: number | null, signal?: string) => void) => {
+          cb(0);
+        };
+        return testChannel;
+      }
+      return serverChannel;
+    }) as unknown as ExecFunction;
+
+    const transport = new SSHSingleTransport();
+    const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
+
+    simulateHandshake(serverChannel);
+    await transport.connect(server, {
+      exec,
+      upload,
+      privateInstall: true,
+      serverPath: '/existing/path/mapepire-server.jar',
+    });
+
+    const remoteCmd = transport.getRemoteCommand();
+    expect(remoteCmd).toContain('/existing/path/mapepire-server.jar');
+    expect(remoteCmd).not.toContain(MOCKED_REMOTE_JAR);
+    expect(transport.isConnected()).toBe(true);
+
+    await transport.close();
+  });
 });
