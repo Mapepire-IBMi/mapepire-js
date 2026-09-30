@@ -126,7 +126,13 @@ mapepire-js can manage the server JAR automatically:
 SHA-256 is only verified on a JAR we just uploaded — not on a pre-existing remote JAR, because
 `JAR_SHA256` is specific to the bundled version and cannot vouch for any other version's bytes.
 
-If `serverPath` is explicitly set, private install is skipped entirely (caller manages the path).
+#### Controlling Private Install (`privateInstall` option)
+
+You can explicitly control private install via `privateInstall` in `sshSingle`:
+
+- **`privateInstall: true`**: Forces private install (requires `upload`). If `serverPath` is also set but the file does not exist on the remote host, it logs a warning and falls back to private install automatically.
+- **`privateInstall: false`**: Disables private install completely even if `upload` is supplied. Uses `serverPath` or the default RPM path (`/opt/mapepire/lib/mapepire/mapepire-server.jar`).
+- **`undefined` (default)**: Automatic mode. Runs private install when `upload` is provided and `serverPath` is omitted; otherwise uses `serverPath` or the default path.
 
 ## SSH Helpers
 
