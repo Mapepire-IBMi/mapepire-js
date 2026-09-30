@@ -582,7 +582,7 @@ describe('SSH Helpers - Error Handling', () => {
           clearTimeout(timeout);
           resolve();
         });
-        client.on('error', (err) => {
+        client.on('error', (err: any) => {
           clearTimeout(timeout);
           reject(err);
         });
@@ -600,7 +600,7 @@ describe('SSH Helpers - Error Handling', () => {
       sshClient = new Client();
       await new Promise<void>((resolve, reject) => {
         sshClient!.on('ready', () => resolve());
-        sshClient!.on('error', (err) => reject(err));
+        sshClient!.on('error', (err: any) => reject(err));
         sshClient!.connect(SSH_CREDS);
       });
 
@@ -638,7 +638,7 @@ describe('SSH Helpers - Integration Tests', () => {
       sshClient = new Client();
       await new Promise<void>((resolve, reject) => {
         sshClient!.on('ready', () => resolve());
-        sshClient!.on('error', (err) => reject(err));
+        sshClient!.on('error', (err: any) => reject(err));
         sshClient!.connect(SSH_CREDS);
       });
 
