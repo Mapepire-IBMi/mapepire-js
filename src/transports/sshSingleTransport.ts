@@ -300,6 +300,10 @@ export class SSHSingleTransport extends BaseTransport {
     try {
       const channel = await exec(`test -f ${shellEscape(remotePath)}`);
       return new Promise<boolean>((resolve) => {
+        // Read stream data to prevent backpressure from holding the SSH channel open
+        channel.stdout.on('data', () => {});
+        channel.stderr.on('data', () => {});
+
         channel.onExit((code) => {
           channel.close();
           resolve(code === 0);
