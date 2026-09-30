@@ -5,7 +5,7 @@
 
 import path from "path";
 import { BaseTransport, TransportOptions } from "../transport";
-import { DaemonServer, ServerRequest, ServerResponse, SSHSingleConfig, ExecChannel } from "../types";
+import { DaemonServer, ServerRequest, ServerResponse, SSHSingleConfig, ExecChannel, ExecFunction } from "../types";
 import { LineBuffer } from "./lineBuffer";
 import {
   DEFAULT_JAVA_PATH,
@@ -293,42 +293,78 @@ export class SSHSingleTransport extends BaseTransport {
    * @param server - Server connection details (not used for ssh-single, kept for interface compatibility)
    * @param options - SSH single transport options
    */
+  /**
+   * Checks whether a file exists on the remote system using test -f.
+   */
+  private async checkRemoteFileExists(exec: ExecFunction, remotePath: string): Promise<boolean> {
+    try {
+      const channel = await exec(`test -f ${shellEscape(remotePath)}`);
+      return new Promise<boolean>((resolve) => {
+        // Read stream data to prevent backpressure from holding the SSH channel open
+        channel.stdout.on('data', () => {});
+        channel.stderr.on('data', () => {});
+
+        channel.onExit((code) => {
+          channel.close();
+          resolve(code === 0);
+        });
+      });
+    } catch {
+      return false;
+    }
+  }
+
   async connect(server: DaemonServer, options: SSHSingleTransportOptions = {}): Promise<void> {
     if (!options.exec) {
       throw new Error('SSH single transport requires an exec function in sshSingle config');
     }
 
-    const serverPath = options.serverPath || DEFAULT_OPT_SERVER_PATH;
+    if (options.privateInstall === true && !options.upload) {
+      throw new Error('privateInstall is enabled but no upload function was provided in sshSingle config');
+    }
 
     this.setState(ConnectionState.CONNECTING);
 
-    // --- Private install ---------------------------------------------------
-    // When serverPath is NOT explicitly provided AND an upload function IS provided,
-    // automatically ensure the bundled JAR is installed on the remote system
-    // at $HOME/.mapepire/ before launching.
-    let resolvedServerPath = options.serverPath;
+    // --- Private install / Server Path Resolution ---------------------------
+    let resolvedServerPath: string | undefined;
 
-    if (!resolvedServerPath && options.upload) {
-      // Resolve the local bundled JAR path.
-      // The JAR is bundled into the same dist/ directory as index.js, so __dirname
-      // (which equals the dist/ folder at runtime) is the correct base — no traversal.
-      // Note: __dirname is only available in CJS. This package is compiled as CJS
-      // (see tsconfig "module": "commonjs"), so this is safe. If ESM support is
-      // ever added, replace with: new URL('.', import.meta.url).pathname
+    // Helper to perform private install
+    const performPrivateInstall = async (): Promise<string> => {
       const localJarPath = path.join(__dirname, SERVER_VERSION_FILE);
-
-      resolvedServerPath = await ensureServerInstalled({
-        exec: options.exec,
-        upload: options.upload,
+      return ensureServerInstalled({
+        exec: options.exec!,
+        upload: options.upload!,
         localJarPath,
         version: VERSION,
         jarSha256: JAR_SHA256,
         remoteInstallDir: options.privateInstallDir,
       });
+    };
+
+    if (options.privateInstall === true) {
+      if (options.serverPath) {
+        const fileExists = await this.checkRemoteFileExists(options.exec, options.serverPath);
+        if (!fileExists) {
+          console.warn(`[ssh-single transport] serverPath "${options.serverPath}" not found on remote system, falling back to private install.`);
+          resolvedServerPath = await performPrivateInstall();
+        } else {
+          resolvedServerPath = options.serverPath;
+        }
+      } else {
+        resolvedServerPath = await performPrivateInstall();
+      }
+    } else if (options.privateInstall === false) {
+      resolvedServerPath = options.serverPath || DEFAULT_OPT_SERVER_PATH;
+    } else {
+      // options.privateInstall is undefined (default / auto mode)
+      if (!options.serverPath && options.upload) {
+        resolvedServerPath = await performPrivateInstall();
+      } else {
+        resolvedServerPath = options.serverPath || DEFAULT_OPT_SERVER_PATH;
+      }
     }
 
-    const DEFAULT_SERVER_PATH = '/opt/mapepire/lib/mapepire/mapepire-server.jar';
-    const effectiveServerPath = resolvedServerPath || serverPath || DEFAULT_SERVER_PATH;
+    const effectiveServerPath = resolvedServerPath || DEFAULT_OPT_SERVER_PATH;
 
     // Store teardown so close() can end the internally-owned SSH client (if any).
     this.teardown = options.teardown;
