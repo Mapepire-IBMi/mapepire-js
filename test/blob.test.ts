@@ -103,6 +103,9 @@ beforeAll(async () => {
 
   schema = (creds.user as string).toUpperCase();
 
+  // Ensure the schema/library exists — SQL0601 if already exists is safe to ignore
+  await job.execute(`CREATE SCHEMA ${schema}`).catch(() => {});
+
   // Ensure the prerequisite table exists — creates it on first run on any system
   await job.execute(
     `CREATE TABLE IF NOT EXISTS ${SMALL_TABLE()} ` +

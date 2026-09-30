@@ -36,7 +36,7 @@ class MockChildProcess extends EventEmitter {
       write(_chunk, _enc, cb) { cb(); return true; },
     }) as Writable & { write: ReturnType<typeof vi.fn> };
 
-    const boundWrite = this.stdin.write.bind(this.stdin);
+    const boundWrite = this.stdin.write.bind(this.stdin) as (...args: any[]) => boolean;
     this.stdin.write = vi.fn((...args: any[]) => boundWrite(...args));
 
     this.stdout = new Readable({ read() {} });

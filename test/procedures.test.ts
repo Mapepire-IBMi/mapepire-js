@@ -70,8 +70,8 @@ test(`IN, OUT, INOUT number parameters`, async () => {
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map((p) => p.name);
-  const inParmTypes = result.metadata.parameters.map((p) => p.type);
+  const inParmNames = result.metadata.parameters!.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters!.map((p) => p.type);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["INTEGER", "INTEGER", "INTEGER"]);
 
@@ -82,10 +82,10 @@ test(`IN, OUT, INOUT number parameters`, async () => {
   expect(result.data.length).toBe(0);
 
   expect(result.output_parms).toBeDefined();
-  expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map((p) => p.name);
-  const outParmTypes = result.output_parms.map((p) => p.type);
-  const outParmValues = result.output_parms.map((p) => p.value);
+  expect(result.output_parms!.length).toBe(3);
+  const outParmNames = result.output_parms!.map((p) => p.name);
+  const outParmTypes = result.output_parms!.map((p) => p.type);
+  const outParmValues = result.output_parms!.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["INTEGER", "INTEGER", "INTEGER"]);
@@ -122,9 +122,9 @@ test(`IN, OUT, INOUT char parameters`, async () => {
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map((p) => p.name);
-  const inParmTypes = result.metadata.parameters.map((p) => p.type);
-  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
+  const inParmNames = result.metadata.parameters!.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters!.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters!.map((p) => p.precision);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["CHAR", "CHAR", "CHAR"]);
   expect(inPrecisions).toEqual([5, 6, 7]);
@@ -136,11 +136,11 @@ test(`IN, OUT, INOUT char parameters`, async () => {
   expect(result.data.length).toBe(0);
 
   expect(result.output_parms).toBeDefined();
-  expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map((p) => p.name);
-  const outParmTypes = result.output_parms.map((p) => p.type);
-  const outParmPrecisions = result.output_parms.map((p) => p.precision);
-  const outParmValues = result.output_parms.map((p) => p.value);
+  expect(result.output_parms!.length).toBe(3);
+  const outParmNames = result.output_parms!.map((p) => p.name);
+  const outParmTypes = result.output_parms!.map((p) => p.type);
+  const outParmPrecisions = result.output_parms!.map((p) => p.precision);
+  const outParmValues = result.output_parms!.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["CHAR", "CHAR", "CHAR"]);
@@ -178,9 +178,9 @@ test(`IN, OUT, INOUT varchar parameters`, { timeout: 15000 }, async () => {
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map((p) => p.name);
-  const inParmTypes = result.metadata.parameters.map((p) => p.type);
-  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
+  const inParmNames = result.metadata.parameters!.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters!.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters!.map((p) => p.precision);
   expect(inParmNames).toEqual(["P1", "P2", "P3"]);
   expect(inParmTypes).toEqual(["VARCHAR", "VARCHAR", "VARCHAR"]);
   expect(inPrecisions).toEqual([5, 6, 7]);
@@ -192,11 +192,11 @@ test(`IN, OUT, INOUT varchar parameters`, { timeout: 15000 }, async () => {
   expect(result.data.length).toBe(0);
 
   expect(result.output_parms).toBeDefined();
-  expect(result.output_parms.length).toBe(3);
-  const outParmNames = result.output_parms.map((p) => p.name);
-  const outParmTypes = result.output_parms.map((p) => p.type);
-  const outParmPrecisions = result.output_parms.map((p) => p.precision);
-  const outParmValues = result.output_parms.map((p) => p.value);
+  expect(result.output_parms!.length).toBe(3);
+  const outParmNames = result.output_parms!.map((p) => p.name);
+  const outParmTypes = result.output_parms!.map((p) => p.type);
+  const outParmPrecisions = result.output_parms!.map((p) => p.precision);
+  const outParmValues = result.output_parms!.map((p) => p.value);
 
   expect(outParmNames).toEqual(["P1", "P2", "P3"]);
   expect(outParmTypes).toEqual(["VARCHAR", "VARCHAR", "VARCHAR"]);
@@ -231,9 +231,9 @@ test(`IN, OUT clob parameters`, { timeout: 15000 }, async () => {
   await queryB.close();
 
   expect(result.metadata.parameters).toBeDefined();
-  const inParmNames = result.metadata.parameters.map((p) => p.name);
-  const inParmTypes = result.metadata.parameters.map((p) => p.type);
-  const inPrecisions = result.metadata.parameters.map((p) => p.precision);
+  const inParmNames = result.metadata.parameters!.map((p) => p.name);
+  const inParmTypes = result.metadata.parameters!.map((p) => p.type);
+  const inPrecisions = result.metadata.parameters!.map((p) => p.precision);
   expect(inParmNames).toEqual(["IN1", "OUT1"]);
   expect(inParmTypes).toEqual(["CLOB", "CLOB"]);
   expect(inPrecisions).toEqual([1048576, 1048576]);
@@ -245,11 +245,11 @@ test(`IN, OUT clob parameters`, { timeout: 15000 }, async () => {
   expect(result.data.length).toBe(0);
 
   expect(result.output_parms).toBeDefined();
-  expect(result.output_parms.length).toBe(2);
-  const outParmNames = result.output_parms.map((p) => p.name);
-  const outParmTypes = result.output_parms.map((p) => p.type);
-  const outParmPrecisions = result.output_parms.map((p) => p.precision);
-  const outParmValues = result.output_parms.map((p) => p.value);
+  expect(result.output_parms!.length).toBe(2);
+  const outParmNames = result.output_parms!.map((p) => p.name);
+  const outParmTypes = result.output_parms!.map((p) => p.type);
+  const outParmPrecisions = result.output_parms!.map((p) => p.precision);
+  const outParmValues = result.output_parms!.map((p) => p.value);
 
   expect(outParmNames).toEqual(["IN1", "OUT1"]);
   expect(outParmTypes).toEqual(["CLOB", "CLOB"]);

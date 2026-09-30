@@ -33,7 +33,7 @@ test(`Self signed cert should not be trusted when ca not provided`, async () => 
     const job = new SQLJob();
     await job.connect(creds);
     throw new Error("Self signed certificate was trusted when it shouldn't have been");
-  } catch (e) {
+  } catch (e: any) {
     expect(e.message).toMatch(/self[-\s]+signed[\s]+certificate/i)
   }
 });
@@ -66,7 +66,7 @@ test(`Self signed certificate should not be trusted when providing not matching 
     creds.ca = badCert;
     await job.connect(creds);
     throw new Error("Self signed certificate was trusted when it shouldn't have been");
-  } catch (e) {
+  } catch (e: any) {
     expect(e.message).toMatch(/self[-\s]+signed[\s]+certificate|unable to get local issuer certificate/i)
   }
 });

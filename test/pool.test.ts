@@ -18,9 +18,9 @@ test(`Simple pool (using pool#execute)`, async () => {
   await pool.init();
 
   const resultsA = await Promise.all([
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
   ]);
 
   jobNames = resultsA.map((res) => res.data[0]["00001"]);
@@ -31,21 +31,21 @@ test(`Simple pool (using pool#execute)`, async () => {
   expect(pool.getActiveJobCount()).toBe(3);
 
   const resultsB = await Promise.all([
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
-    pool.execute(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
+    pool.execute<Record<string, string>>(`values (job_name)`),
   ]);
 
   jobNames = resultsB.map((res) => res.data[0]["00001"]);

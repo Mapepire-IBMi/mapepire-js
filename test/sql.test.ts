@@ -4,6 +4,7 @@ import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
 import { ENV_CREDS } from "./env";
 import { DEFAULT_APPLICATION_NAME } from "../src/sqlJob";
+import { WebSocketTransport } from "../src/transports/websocket";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 let invalidCreds: DaemonServer = {
@@ -57,23 +58,23 @@ test("Run an SQL Query with large and small integers/decimals avoids truncation"
   await job.connect(creds);
 
   const largeInteger = "123456789012345678901";
-  const res1 = await job.execute(`values(cast('${largeInteger}' as numeric(21,0)))`);
+  const res1 = await job.execute<Record<string, unknown>>(`values(cast('${largeInteger}' as numeric(21,0)))`);
   expect(res1.data[0]["00001"]).toBe(largeInteger);
 
   const largeDecimal = "123456789012345678901.1";
-  const res2 = await job.execute(`values(cast('${largeDecimal}' as decimal(22, 1)))`);
+  const res2 = await job.execute<Record<string, unknown>>(`values(cast('${largeDecimal}' as decimal(22, 1)))`);
   expect(res2.data[0]["00001"]).toBe(largeDecimal);
 
   const smallInteger = 12345;
-  const res3 = await job.execute(`values(cast('${smallInteger}' as numeric(5,0)))`);
+  const res3 = await job.execute<Record<string, unknown>>(`values(cast('${smallInteger}' as numeric(5,0)))`);
   expect(res3.data[0]["00001"]).toBe(smallInteger);
 
   const smallDecimal = 123.45;
-  const res4 = await job.execute(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
+  const res4 = await job.execute<Record<string, unknown>>(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
   expect(res4.data[0]["00001"]).toBe(smallDecimal);
 
   const small2Decimal = "1.00";
-  const res5 = await job.execute(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
+  const res5 = await job.execute<Record<string, unknown>>(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
   expect(res5.data[0]["00001"]).toBe(small2Decimal);
 
   await job.close();
@@ -103,7 +104,7 @@ test("Run an Invalid SQL Query", async () => {
   try {
     await query.execute(10);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toContain("*FILE not found.");
   } finally {
     await query.close();
@@ -119,7 +120,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
   try {
     await query.execute(1);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toContain(
       "A string parameter value with zero length was detected."
     );
@@ -129,7 +130,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     query = await job.query<any>("a");
     await query.execute(1);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toContain("Token A was not valid.");
   }
 
@@ -139,7 +140,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     );
     await query.execute(1);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toContain(
       "Token AERIOGFJ304TQ34PROJQWE was not valid."
     );
@@ -151,7 +152,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     );
     await query.execute(0);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
 
@@ -159,7 +160,7 @@ test("Run an SQL Query with Edge Case Inputs", async () => {
     query = await job.query<any>("select * from sample.department");
     const res = await query.execute(-1);
     throw new Error("Exception not hit");
-  } catch (error) {
+  } catch (error: any) {
     expect(error.message).toEqual("rowsToFetch must be greater than 0");
   }
   await query.close();
@@ -241,14 +242,14 @@ test("Prepare SQL Statement in Terse Format", async () => {
 test("Prepare an Invalid SQL Statement", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  let error;
+  let error: any;
   try {
     const query = await job.query<any>("select * FROM MAPEPIRE.FAKETABLE", {
       parameters: [],
       isTerseResults: false,
     });
     await query.execute();
-  } catch (err) {
+  } catch (err: any) {
     error = err;
   } finally {
     await job.close();
@@ -298,15 +299,15 @@ test("Prepare an SQL Statement with multiple parameters", async () => {
 test("Prepare SQL with Edge Case Inputs", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  let error;
-  let query;
+  let error: any;
+  let query: Awaited<ReturnType<typeof job.query>> | undefined;
   try {
     query = await job.query<any>("", {
       isTerseResults: false,
       parameters: [],
     });
     await query.execute();
-  } catch (err) {
+  } catch (err: any) {
     error = err;
   }
   expect(error).toBeDefined();
@@ -323,7 +324,7 @@ test("Prepare SQL with Edge Case Inputs", async () => {
       }
     );
     await query.execute();
-  } catch (err) {
+  } catch (err: any) {
     error = err;
   }
 
@@ -341,7 +342,7 @@ test("Prepare SQL with Edge Case Inputs", async () => {
       }
     );
     await query.execute();
-  } catch (err) {
+  } catch (err: any) {
     error = err;
   }
 
@@ -359,10 +360,10 @@ test("Prepare SQL with Edge Case Inputs", async () => {
       }
     );
     await query.execute();
-  } catch (err) {
+  } catch (err: any) {
     error = err;
   }
-  await query.close();
+  await query!.close();
   await job.close();
 
   expect(error).toBeDefined();
@@ -550,7 +551,10 @@ test(
     const job = new SQLJob();
     await job.connect(creds);
     const promise = job.query("call qsys2.qcmdexc('QSYS/DLYJOB DLY(5)')").execute();
-    job.getSocket().terminate() // Simulate connection drop.
+    const transport = job.getTransport();
+    if (transport instanceof WebSocketTransport) {
+      transport.getSocket()!.terminate(); // Simulate connection drop.
+    }
     await expect(promise).rejects.toThrow("Connection failed with code 1006");
     await job.close();
   }
@@ -560,15 +564,15 @@ test("Default and custom application name", async () => {
   // Default application name
   const job1 = new SQLJob();
   await job1.connect(creds);
-  const res1 = await job1.execute(`VALUES CURRENT CLIENT_APPLNAME`);
+  const res1 = await job1.execute<Record<string, unknown>>(`VALUES CURRENT CLIENT_APPLNAME`);
   await job1.close();
   expect(res1.data[0]["00001"]).toBe(DEFAULT_APPLICATION_NAME);
 
-  // Custom application name 
+  // Custom application name
   const customApplicationName = `Mapepire-js Tests`;
   const job2 = new SQLJob();
   await job2.connect(creds, customApplicationName);
-  const res2 = await job2.execute(`VALUES CURRENT CLIENT_APPLNAME`);
+  const res2 = await job2.execute<Record<string, unknown>>(`VALUES CURRENT CLIENT_APPLNAME`);
   await job2.close();
   expect(res2.data[0]["00001"]).toBe(customApplicationName);
 });
