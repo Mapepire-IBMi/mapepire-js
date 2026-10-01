@@ -5,10 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-01
+
+### Added
+- **Application name support**: Clients can now send a custom application name when connecting; defaults to `mapepire-js` if not provided.
+- **BLOB support**: Read and write BLOB columns via `SQLJob`; includes auto-creation of `TEMPBLOB` staging table and additional BLOB test coverage.
+- **CL command documentation fetching**: New `fetchCLCommandDocs` API to retrieve IBM i CL command documentation directly from the server.
+- **`SQLJob.ssh2()` / `SQLJob.nodeSSH()` static factory helpers**: Credential-first factory methods for creating SSH Single jobs without manually constructing transport config.
+
 ## [1.0.0] - 2026-09-22
 
 ### Changed
 - Updated documentation.
+
+### Fixed
+- Fixed truncation of large numbers by using strings instead of `BigInt` for `BIGINT`/`DECIMAL` columns.
+- Fixed decimal truncation for numeric result values.
+- Fixed BLOB support test setup: auto-creates `TEMPBLOB` table in `beforeAll` if missing.
 
 ## [0.6.3] - 2026-09-18
 
