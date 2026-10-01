@@ -30,8 +30,8 @@ test('Connect to Database with Invalid Properties', async () => {
   try {
     await job.connect(invalidCreds);
   } catch (error) {
-    expect(error.message).toContain('The application server rejected the connection');
-    expect(error.message).toContain('FAKEUSER');
+    expect(error instanceof Error && error.message).toContain('The application server rejected the connection');
+    expect(error instanceof Error && error.message).toContain('FAKEUSER');
   }
 });
 
@@ -65,7 +65,7 @@ test('Allow empty CA and self-signed certificate', async () => {
     await job.connect(noCACreds);
     throw new Error("Self signed certificate error not hit")
   } catch(error){
-    expect(error.message).toMatch(/self[-\s]+signed[\s]+certificate/i)
+    expect(error instanceof Error ? error.message : String(error)).toMatch(/self[-\s]+signed[\s]+certificate/i)
   }
 
 });
