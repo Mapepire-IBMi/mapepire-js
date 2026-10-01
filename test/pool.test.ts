@@ -1,9 +1,14 @@
-import { beforeAll, expect, test, vi } from "vitest";
+import 'dotenv/config';
+import { beforeAll, afterAll, describe, expect, test, vi } from "vitest";
 import { Pool } from "../src/pool";
 import { ENV_CREDS } from "./env";
 import { SQLJob, getRootCertificate } from "../src";
 import { DaemonServer, QueryResult } from "../src/types";
 import { JobStatus } from "../src/states";
+import { connectSSH2, createSSH2PoolConfig } from '../src/transports/ssh2Helper';
+import { connectNodeSSH, createNodeSSHPoolConfig } from '../src/transports/nodeSSHHelper';
+import type { Client } from 'ssh2';
+import type { NodeSSH } from 'node-ssh';
 
 let creds: DaemonServer = { ...ENV_CREDS };
 
@@ -290,3 +295,149 @@ test("Freeist job is returned", async () => {
   await Promise.all(executedPromises);
   await pool.end();
 });
+
+// ---------------------------------------------------------------------------
+// Pool + SSH Single (live IBM i) — skipped when IBMI_HOST/USER/PASSWORD absent
+// ---------------------------------------------------------------------------
+
+const IBMI_HOST     = process.env.IBMI_HOST;
+const IBMI_USER     = process.env.IBMI_USER;
+const IBMI_PASSWORD = process.env.IBMI_PASSWORD;
+const IBMI_PORT     = process.env.IBMI_SSH_PORT ? Number(process.env.IBMI_SSH_PORT) : 22;
+const haveSSH       = Boolean(IBMI_HOST && IBMI_USER && IBMI_PASSWORD);
+
+describe.skipIf(!haveSSH)(`Pool + ssh-single (ssh2)`, () => {
+  let client: Client;
+
+  beforeAll(async () => {
+    client = await connectSSH2({
+      host: IBMI_HOST!,
+      username: IBMI_USER!,
+      password: IBMI_PASSWORD!,
+      port: IBMI_PORT,
+    });
+  }, 30000);
+
+  afterAll(() => { client?.end(); });
+
+  test(`SSH pool init pre-warms all jobs`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 3, startingSize: 3 });
+    await pool.init();
+    expect(pool.getActiveJobCount()).toBe(3);
+    await pool.end();
+  }, 60000);
+
+  test(`SSH pool parallel execute returns results from distinct IBM i jobs`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 3, startingSize: 3 });
+    await pool.init();
+
+    const results = await Promise.all([
+      pool.execute<any>(`values (job_name)`),
+      pool.execute<any>(`values (job_name)`),
+      pool.execute<any>(`values (job_name)`),
+    ]);
+    const jobNames = results.map(r => r.data[0]['00001']);
+    console.log('SSH Single pool job names:', jobNames);
+    expect(new Set(jobNames).size).toBeGreaterThanOrEqual(2);
+
+    await pool.end();
+  }, 60000);
+
+  test(`SSH pool 10 parallel queries all succeed`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 5, startingSize: 5 });
+    await pool.init();
+
+    const queries: Promise<QueryResult<any>>[] = [];
+    for (let i = 0; i < 10; i++) {
+      queries.push(pool.execute(`select * from QIWS.QCUSTCDT`));
+    }
+    const results = await Promise.all(queries);
+    results.forEach(r => expect(r.has_results).toBe(true));
+
+    await pool.end();
+  }, 120000);
+
+  test(`SSH pool is faster than single ssh job for parallel queries`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 5, startingSize: 5 });
+    await pool.init();
+
+    const startPool = Date.now();
+    const poolQueries: Promise<QueryResult<any>>[] = [];
+    for (let i = 0; i < 10; i++) {
+      poolQueries.push(pool.execute(`select * from QIWS.QCUSTCDT`));
+    }
+    await Promise.all(poolQueries);
+    const poolTime = Date.now() - startPool;
+    await pool.end();
+
+    const singleJob = await SQLJob.ssh2({
+      host: IBMI_HOST!, username: IBMI_USER!, password: IBMI_PASSWORD!, port: IBMI_PORT,
+    });
+    await singleJob.connect();
+    const startSingle = Date.now();
+    const singleQueries: Promise<QueryResult<any>>[] = [];
+    for (let i = 0; i < 10; i++) {
+      singleQueries.push(singleJob.execute(`select * from QIWS.QCUSTCDT`));
+    }
+    await Promise.all(singleQueries);
+    const singleTime = Date.now() - startSingle;
+    await singleJob.close();
+
+    console.log(`Pool: ${poolTime}ms  Single: ${singleTime}ms`);
+    expect(poolTime).toBeLessThan(singleTime);
+  }, 180000);
+
+  test(`SSH pool tagged template sql works`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 2, startingSize: 2 });
+    await pool.init();
+
+    const minBal = 1000;
+    const result = await pool.sql`select CUSNUM from QIWS.QCUSTCDT where BALDUE > ${minBal}`;
+    expect(result.has_results).toBe(true);
+
+    await pool.end();
+  }, 60000);
+
+  test(`SSH pool popJob returns a ready job`, async () => {
+    const pool = new Pool({ config: createSSH2PoolConfig(client), maxSize: 3, startingSize: 3 });
+    await pool.init();
+
+    const job = await pool.popJob();
+    expect(job.getStatus()).toBe(JobStatus.READY);
+    expect(pool.getActiveJobCount()).toBe(2);
+
+    await job.close();
+    await pool.end();
+  }, 60000);
+});
+
+describe.skipIf(!haveSSH)(`Pool + ssh-single (node-ssh)`, () => {
+  let ssh: NodeSSH;
+
+  beforeAll(async () => {
+    ssh = await connectNodeSSH({
+      host: IBMI_HOST!,
+      username: IBMI_USER!,
+      password: IBMI_PASSWORD!,
+      port: IBMI_PORT,
+    });
+  }, 30000);
+
+  afterAll(() => { ssh?.dispose(); });
+
+  test(`nodeSSH pool init and parallel execute`, async () => {
+    const pool = new Pool({ config: createNodeSSHPoolConfig(ssh), maxSize: 3, startingSize: 3 });
+    await pool.init();
+    expect(pool.getActiveJobCount()).toBe(3);
+
+    const results = await Promise.all([
+      pool.execute<any>(`values (job_name)`),
+      pool.execute<any>(`values (job_name)`),
+      pool.execute<any>(`values (job_name)`),
+    ]);
+    results.forEach(r => expect(r.data.length).toBeGreaterThan(0));
+
+    await pool.end();
+  }, 60000);
+});
+

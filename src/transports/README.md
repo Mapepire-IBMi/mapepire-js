@@ -128,6 +128,82 @@ SHA-256 is only verified on a JAR we just uploaded — not on a pre-existing rem
 
 If `serverPath` is explicitly set, private install is skipped entirely (caller manages the path).
 
+## Pool with SSH Single
+
+Use `Pool` for production SSH single workloads: it pre-warms N JVM processes at startup
+so queries are served immediately without paying the 15–18 s JVM boot cost per request.
+
+> **Sizing guidance:** Each pool job is a full JVM process on IBM i. The dominant cost
+> is native PASE process RAM (~300 MB per job, fixed regardless of query load) — not
+> Java heap, which stays small at idle. Set `startingSize === maxSize` to pre-warm all
+> jobs upfront; dynamic scale-up triggers a JVM boot (~15–18 s) that cannot help a burst
+> already in flight. A pool of 3–5 is right for most workloads. Unlike WebSocket pools
+> (where adding jobs costs almost nothing), each SSH Single pool slot consumes real IBM i
+> memory — size conservatively.
+
+**Tier 1 — Ergonomic (recommended):**
+
+```typescript
+import { connectSSH2, createSSH2PoolConfig, Pool } from '@ibm/mapepire-js';
+
+// One SSH connection, N JVM processes sharing it
+const client = await connectSSH2({ host: 'ibm-i.example.com', username: 'USER', password: 'PASS' });
+
+const pool = new Pool({
+  config: createSSH2PoolConfig(client),
+  maxSize: 5,
+  startingSize: 5,  // pre-warm all — JVM boot is expensive
+});
+await pool.init();  // private install runs once here, then all 5 JVMs start in parallel
+
+const result = await pool.execute('SELECT * FROM QIWS.QCUSTCDT');
+await pool.end();
+client.end();  // caller closes SSH client after pool
+```
+
+**node-ssh variant:**
+
+```typescript
+import { connectNodeSSH, createNodeSSHPoolConfig, Pool } from '@ibm/mapepire-js';
+
+const ssh = await connectNodeSSH({ host: 'ibm-i.example.com', username: 'USER', password: 'PASS' });
+
+const pool = new Pool({
+  config: createNodeSSHPoolConfig(ssh),
+  maxSize: 5,
+  startingSize: 5,
+});
+await pool.init();
+// ... use pool ...
+await pool.end();
+ssh.dispose();
+```
+
+**Tier 2 — Advanced (full manual control):**
+
+```typescript
+import { createSSH2Exec, createSSH2Upload, Pool } from '@ibm/mapepire-js';
+
+const pool = new Pool({
+  config: {
+    transport: 'ssh-single',
+    sshSingle: {
+      exec: createSSH2Exec(client),
+      upload: createSSH2Upload(client),
+      javaPath: '/QOpenSys/QIBM/ProdData/JavaVM/jdk17/64bit/bin/java',
+      // NOTE: no teardown — Pool does not own the SSH client
+    },
+  },
+  maxSize: 5,
+  startingSize: 5,
+});
+```
+
+**SSH client lifecycle rules:**
+- `pool.end()` closes all SQLJob instances (terminates exec channels + JVMs)
+- The SSH client is **not** closed by `pool.end()` — caller must call `client.end()` / `ssh.dispose()` after
+- **Never set `teardown`** on a config passed to Pool — it would close the shared SSH client when the first job closes
+
 ## SSH Helpers
 
 Built-in helpers for ssh2 and node-ssh libraries:
@@ -228,6 +304,8 @@ Comprehensive test coverage available:
 - [`test/sshSingleTransport.test.ts`](../../test/sshSingleTransport.test.ts) - SSH transport layer tests
 - [`test/localSingleTransport.test.ts`](../../test/localSingleTransport.test.ts) - Local transport layer tests
 - [`test/serverInstaller.test.ts`](../../test/serverInstaller.test.ts) - Private install logic (10 test cases)
+- [`test/poolSshSingle.test.ts`](../../test/poolSshSingle.test.ts) - Pool + SSH Single unit tests (offline, mocked)
+- [`test/pool.test.ts`](../../test/pool.test.ts) - Pool tests including SSH Single live IBM i section (env-gated)
 
 ## Quick Comparison
 
