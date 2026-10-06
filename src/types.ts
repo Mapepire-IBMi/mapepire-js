@@ -421,6 +421,9 @@ export interface ColumnMetaData {
 
   /** The column's table name. */
   table: string;
+
+  /** `true` when the column is BLOB/binary — cells will be {@link BlobRef} objects (daemon mode). */
+  blob_as_url?: boolean;
 }
 
 /** Type representing a collection of rows returned from a query. */
