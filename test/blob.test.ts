@@ -550,6 +550,37 @@ describe("BLOB support (daemon mode)", () => {
     await job.fetchBlob(ref).catch(() => {});
   });
 
+  // ── Test 17 ───────────────────────────────────────────────────────────────
+  test("17. blob_as_url is true in column metadata for a BLOB column", async () => {
+    const res = await job.execute<TempBlobRow>(
+      `SELECT JBLOB FROM ${SMALL_TABLE()} WHERE JBLOB IS NOT NULL FETCH FIRST 1 ROW ONLY`
+    );
+
+    expect(res.success).toBe(true);
+    expect(res.metadata.columns).toBeDefined();
+
+    const col = res.metadata.columns![0];
+    expect(col.name.toUpperCase()).toBe("JBLOB");
+    expect(col.blob_as_url).toBe(true);
+
+    // Consume the token
+    await job.fetchBlob(res.data[0].JBLOB as BlobRef).catch(() => {});
+  });
+
+  // ── Test 18 ───────────────────────────────────────────────────────────────
+  test("18. blob_as_url is false/absent in column metadata for a non-BLOB column", async () => {
+    const res = await job.execute<{ ONE: number }>(
+      `SELECT 1 AS ONE FROM SYSIBM.SYSDUMMY1`
+    );
+
+    expect(res.success).toBe(true);
+    expect(res.metadata.columns).toBeDefined();
+
+    const col = res.metadata.columns![0];
+    // Non-BLOB columns must NOT have blob_as_url set to true
+    expect(col.blob_as_url).toBeFalsy();
+  });
+
   // ── Test 16 ───────────────────────────────────────────────────────────────
   test("16. BlobRef is returned correctly in terse-results mode", async () => {
     const res = await job.execute<TempBlobRow>(
