@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { UrlToDaemon } from '../src/sqlJob';
+import { UrlToDaemon } from '../src/index';
 
 test(`Basic url`, async () => {
   const base64Secret = Buffer.from(`password:weflgkjn3to8eghergnsdfjklgnsdfljas`).toString('base64');
