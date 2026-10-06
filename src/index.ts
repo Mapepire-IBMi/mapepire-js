@@ -1,4 +1,4 @@
-export { SQLJob } from "./sqlJob";
+export { SQLJob, UrlToDaemon } from "./sqlJob";
 export { VERSION, SERVER_VERSION_TAG, SERVER_FILE_PREFIX, SERVER_VERSION_FILE, JAR_SHA256 } from "./serverVersion";
 export { Pool } from "./pool";
 export { getCertificate, getRootCertificate } from "./tls";
