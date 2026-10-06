@@ -1,5 +1,5 @@
 import { SQLJob } from "./sqlJob";
-import { BindingValue, DaemonServer, JDBCOptions, QueryOptions } from "./types";
+import { BindingValue, BlobRef, DaemonServer, JDBCOptions, QueryOptions } from "./types";
 import {JobStatus} from "./states";
 
 /**
@@ -242,6 +242,23 @@ export class Pool {
   execute<T>(sql: string, opts?: QueryOptions) {
     const job = this.getJob();
     return job.execute<T>(sql, opts);
+  }
+
+  /**
+   * Fetches the binary content of a BLOB from the server using any ready job
+   * in the pool.
+   *
+   * When a query executed via the pool returns a BLOB column in daemon mode,
+   * each cell value is a {@link BlobRef}. Pass that object here to retrieve
+   * the raw bytes as a `Buffer` without having to obtain the underlying
+   * {@link SQLJob} manually.
+   *
+   * @param blobRef - The `BlobRef` object returned in query result data.
+   * @returns A promise that resolves to a `Buffer` containing the raw blob bytes.
+   */
+  fetchBlob(blobRef: BlobRef): Promise<Buffer> {
+    const job = this.getJob();
+    return job.fetchBlob(blobRef);
   }
 
   sql<T>(statementParts: TemplateStringsArray, ...parameters: BindingValue[]) {

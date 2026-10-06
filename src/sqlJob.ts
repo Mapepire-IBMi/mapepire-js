@@ -376,7 +376,13 @@ export class SQLJob {
    */
   async fetchBlob(blobRef: BlobRef): Promise<Buffer> {
     if (!this.db2Server) {
-      throw new Error("SQLJob is not connected");
+      // Single-mode has no HTTP server — BLOBs arrive as inline Base64 strings, not BlobRefs.
+      if (this.transport instanceof SSHSingleTransport || this.transport instanceof LocalSingleTransport) {
+        throw new Error(
+          "fetchBlob is not available in single mode — BLOB columns are returned as inline Base64 strings instead of BlobRef objects"
+        );
+      }
+      throw new Error("SQLJob is not connected to a daemon server");
     }
 
     const { host, port, user, password, rejectUnauthorized, ca } = this.db2Server;
