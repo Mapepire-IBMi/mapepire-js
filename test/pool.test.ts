@@ -2,7 +2,7 @@ import { beforeAll, expect, test, vi } from "vitest";
 import { Pool } from "../src/pool";
 import { ENV_CREDS } from "./env";
 import { SQLJob, getRootCertificate } from "../src";
-import { DaemonServer, QueryResult } from "../src/types";
+import { BlobRef, DaemonServer, QueryResult } from "../src/types";
 import { JobStatus } from "../src/states";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -288,5 +288,40 @@ test("Freeist job is returned", async () => {
   expect(job.getStatus()).toBe(JobStatus.BUSY);
   expect(job.getRunningCount()).toBe(2);
   await Promise.all(executedPromises);
+  await pool.end();
+});
+
+test("pool.fetchBlob() retrieves BLOB bytes without needing the underlying SQLJob", async () => {
+  const pool = new Pool({ creds, maxSize: 2, startingSize: 1 });
+  await pool.init();
+
+  const SCHEMA = (creds.user as string).toUpperCase();
+  const TABLE  = `${SCHEMA}.POOL_BLOB_TEST`;
+
+  // Setup: create a small BLOB table and insert one row
+  await pool.execute(`CREATE SCHEMA ${SCHEMA}`).catch(() => {});
+  await pool.execute(`DROP TABLE ${TABLE}`).catch(() => {});
+  await pool.execute(`CREATE TABLE ${TABLE} ( DATA BLOB(1024) )`);
+
+  const originalText  = "pool fetchBlob test";
+  const base64Input   = Buffer.from(originalText, "utf8").toString("base64");
+  await pool.execute(`INSERT INTO ${TABLE} (DATA) VALUES (?)`, { parameters: [base64Input] });
+
+  // Execute the SELECT through the pool — get a BlobRef back
+  interface BlobRow { DATA: BlobRef }
+  const result = await pool.execute<BlobRow>(`SELECT DATA FROM ${TABLE}`);
+  expect(result.success).toBe(true);
+
+  const blobRef = result.data[0].DATA;
+  expect(typeof blobRef).toBe("object");
+  expect(blobRef.blob_url).toMatch(/^\/blob\//);
+
+  // fetchBlob via the pool — no need to reach for the underlying SQLJob
+  const buf = await pool.fetchBlob(blobRef);
+  expect(buf).toBeInstanceOf(Buffer);
+  expect(buf.toString("utf8")).toBe(originalText);
+
+  // Cleanup
+  await pool.execute(`DROP TABLE ${TABLE}`).catch(() => {});
   await pool.end();
 });
