@@ -138,9 +138,12 @@ export class Pool {
   }
 
   /**
-   * Retrieves a ready job from the pool.
+   * Internal helper. Returns the first job currently in `ready` state, or
+   * `undefined` if all jobs are busy or ended.
    *
-   * @returns The first ready job found, or undefined if none are ready.
+   * This method is intentionally private. Callers outside the pool must use
+   * {@link getJob} (synchronous, best-effort) or {@link waitForJob}
+   * (async, guaranteed-ready) instead.
    */
   private getReadyJob() {
     return this.jobs.find((j) => j.getStatus() === "ready");
@@ -156,23 +159,31 @@ export class Pool {
   }
 
   /**
-   * Returns a job as fast as possible. It will either be a ready job
-   * or the job with the least requests on the queue. Will spawn new jobs
-   * if the pool is not full but all jobs are busy.
-   * @returns The retrieved job.
+   * Returns a job as fast as possible. It will either be a ready job or the
+   * job with the least requests on the queue. Will fire off a background job
+   * creation if the pool has space and every job is heavily loaded.
+   *
+   * **Note:** this method is synchronous and best-effort. When all jobs are
+   * busy it returns the least-loaded busy job rather than waiting. If you need
+   * a guaranteed-ready job under concurrent load, use {@link waitForJob}
+   * instead. Returns `undefined` when no jobs exist in a valid state (e.g.
+   * all jobs have ended).
+   *
+   * @returns The retrieved job, or `undefined` if no valid job is available.
    */
   getJob() {
     const job = this.getReadyJob();
     if (!job) {
-      // This code finds a job that is busy, but has the least requests on the queue
+      // Find the busy job with the fewest in-flight requests
       const busyJobs = this.jobs.filter(
         (j) => j.getStatus() === "busy"
       );
       const freeist = busyJobs.sort(
         (a, b) => a.getRunningCount() - b.getRunningCount()
       )[0];
-      // If this job is busy, and the pool is not full, add a new job for later
-      if (this.hasSpace() && freeist.getRunningCount() > 2) {
+      // If every job is busy and the pool still has capacity, spin up a new
+      // job in the background so it is ready for the next request.
+      if (freeist && this.hasSpace() && freeist.getRunningCount() > 2) {
         this.addJob();
       }
       return freeist;
@@ -182,11 +193,20 @@ export class Pool {
   }
 
   /**
-   * Waits for a job to become available. It will return a ready job if one exists,
-   * otherwise, it may create a new job if the pool is not full.
+   * Waits for a job to become available and guarantees a connected job is
+   * returned. Prefer this over {@link getJob} for any concurrent or
+   * high-throughput workload where all pool jobs may already be busy.
    *
-   * @param useNewJob - If true, a new job will be created even if the pool is full.
-   * @returns A promise that resolves to a ready job.
+   * - If a ready job exists it is returned immediately.
+   * - If the pool has space a new job is created and returned.
+   * - If the pool is full and `useNewJob` is `false`, the least-loaded busy
+   *   job is returned via {@link getJob}.
+   * - If `useNewJob` is `true`, a new job is created and returned even when
+   *   the pool is already at `maxSize`.
+   *
+   * @param useNewJob - If `true`, a new job is created even when the pool is
+   *   full. Useful under burst load when you must not queue behind busy jobs.
+   * @returns A promise that resolves to a ready (or newly connected) job.
    */
   async waitForJob(useNewJob = false) {
     const job = this.getReadyJob();
