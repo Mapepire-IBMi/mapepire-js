@@ -143,7 +143,7 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
       send: vi.fn(async (obj: any) => {
         sentObjects.push(obj);
         return {
-          id: obj.id || "corr-123",
+          id: "corr-123",
           success: true,
           is_done: true,
           data: [{ A: 1 }],
@@ -170,7 +170,7 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
       send: vi.fn(async (obj: any) => {
         sentObjects.push(obj);
         return {
-          id: obj.id || "corr-123",
+          id: "corr-123",
           success: true,
           is_done: true,
           data: [{ A: 1 }],
@@ -195,7 +195,7 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
       send: vi.fn(async (obj: any) => {
         sentObjects.push(obj);
         return {
-          id: obj.id || "corr-123",
+          id: "corr-123",
           success: true,
           is_done: true,
           data: [],
@@ -235,7 +235,7 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
       send: vi.fn(async (obj: any) => {
         sentObjects.push(obj);
         return {
-          id: obj.id || "corr-123",
+          id: "corr-123",
           success: true,
           is_done: true,
           data: [{ A: 1 }],
