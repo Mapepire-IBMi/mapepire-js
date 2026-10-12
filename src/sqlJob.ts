@@ -447,14 +447,17 @@ export class SQLJob {
    */
   async execute<T>(sql: string, opts?: QueryOptions) {
     const query = this.query<T>(sql, opts);
-    const result = await query.execute();
-    await query.close();
+    try {
+      const result = await query.execute();
 
-    if (result.error) {
-      throw new Error(result.error);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result;
+    } finally {
+      await query.close();
     }
-
-    return result;
   }
 
   /**

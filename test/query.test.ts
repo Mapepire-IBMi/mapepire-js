@@ -1,7 +1,8 @@
-import { beforeAll, expect, test } from "vitest";
+import { beforeAll, describe, expect, it, test, vi } from "vitest";
 import { DaemonServer } from "../src/types";
 import { SQLJob, getRootCertificate } from "../src";
 import { Query } from "../src/query";
+import { JobStatus } from "../src/states";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -133,4 +134,177 @@ test("a failed query is removed from globalQueryList", async () => {
   expect(getGlobalQueryList()).not.toContain(query);
 
   await job.close();
+});
+
+describe("Query.close() lifecycle and sqlclose dispatch", () => {
+  it("sends sqlclose even when query is already in RUN_DONE state", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        return {
+          id: obj.id || "corr-123",
+          success: true,
+          is_done: true,
+          data: [{ A: 1 }],
+        };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "SELECT 1 FROM SYSIBM.SYSDUMMY1");
+    const result = await query.execute();
+    expect(result.is_done).toBe(true);
+    expect(query.getState()).toBe("RUN_DONE");
+
+    await query.close();
+
+    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeDefined();
+    expect(closeObj.cont_id).toBe("corr-123");
+  });
+
+  it("does not send duplicate sqlclose on multiple close calls", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        return {
+          id: obj.id || "corr-123",
+          success: true,
+          is_done: true,
+          data: [{ A: 1 }],
+        };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "SELECT 1 FROM SYSIBM.SYSDUMMY1");
+    await query.execute();
+
+    await query.close();
+    await query.close();
+
+    const closeCalls = sentObjects.filter((o) => o.type === "sqlclose");
+    expect(closeCalls.length).toBe(1);
+  });
+
+  it("does not send sqlclose for CL commands", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        return {
+          id: obj.id || "corr-123",
+          success: true,
+          is_done: true,
+          data: [],
+        };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "DSPLIBL", { isClCommand: true });
+    await query.execute();
+    await query.close();
+
+    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeUndefined();
+  });
+
+  it("does not send sqlclose if query was never run (no correlationId)", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        return { success: true };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "SELECT 1 FROM SYSIBM.SYSDUMMY1");
+    await query.close();
+
+    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeUndefined();
+  });
+
+  it("does not send sqlclose if job status is ENDED", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        return {
+          id: obj.id || "corr-123",
+          success: true,
+          is_done: true,
+          data: [{ A: 1 }],
+        };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "SELECT 1 FROM SYSIBM.SYSDUMMY1");
+    await query.execute();
+
+    (mockJob.getStatus as any).mockReturnValue(JobStatus.ENDED);
+    await query.close();
+
+    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeUndefined();
+  });
+
+  it("retains correlationId on execute failure so close can clean it up", async () => {
+    const sentObjects: any[] = [];
+    const mockJob = {
+      send: vi.fn(async (obj: any) => {
+        sentObjects.push(obj);
+        if (obj.type === "sql" || obj.type === "prepare_sql_execute") {
+          return {
+            id: "failed-corr-id",
+            success: false,
+            error: "Table not found",
+            sql_state: "42704",
+            sql_rc: -204,
+          };
+        }
+        return { success: true };
+      }),
+      getStatus: vi.fn(() => JobStatus.READY),
+    } as unknown as SQLJob;
+
+    const query = new Query(mockJob, "SELECT * FROM NONEXISTENT");
+    await expect(query.execute()).rejects.toThrow("Table not found");
+    expect(query.getId()).toBe("failed-corr-id");
+
+    await query.close();
+    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeDefined();
+    expect(closeObj.cont_id).toBe("failed-corr-id");
+  });
+
+  it("SQLJob.execute() cleans up query even when execution fails", async () => {
+    const job = new SQLJob();
+    const sent: any[] = [];
+    (job as any).send = vi.fn(async (obj: any) => {
+      sent.push(obj);
+      if (obj.type === "sql") {
+        return {
+          id: "job-exec-fail-id",
+          success: false,
+          error: "Syntax error",
+          sql_state: "42000",
+          sql_rc: -104,
+        };
+      }
+      return { success: true };
+    });
+    (job as any).status = JobStatus.READY;
+
+    await expect(job.execute("INVALID SQL")).rejects.toThrow("Syntax error");
+
+    const closeObj = sent.find((o) => o.type === "sqlclose");
+    expect(closeObj).toBeDefined();
+    expect(closeObj.cont_id).toBe("job-exec-fail-id");
+  });
 });
