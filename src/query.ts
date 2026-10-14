@@ -43,11 +43,6 @@ export class Query<T> {
   private rowsToFetch: number = 100;
 
   /**
-   * Indicates if the query is a CL command.
-   */
-  private isCLCommand: boolean;
-
-  /**
    * The current state of the query execution.
    */
   private state: QueryState = "NOT_YET_RUN";
@@ -67,7 +62,7 @@ export class Query<T> {
   constructor(
     private job: SQLJob,
     query: string,
-    opts: QueryOptions = { isClCommand: false, parameters: undefined }
+    opts: QueryOptions = { parameters: undefined }
   ) {
     if (typeof query !== "string") {
       throw new TypeError("Query must be of type string");
@@ -76,7 +71,6 @@ export class Query<T> {
     this.isPrepared = undefined !== opts.parameters;
     this.parameters = opts.parameters;
     this.sql = query;
-    this.isCLCommand = opts.isClCommand;
     this.isTerseResults = opts.isTerseResults;
 
     Query.globalQueryList.push(this);
@@ -176,24 +170,16 @@ export class Query<T> {
       case "RUN_DONE":
         throw new Error("Statement has already been fully run");
     }
-    let queryObject;
-    if (this.isCLCommand) {
-      queryObject = {
-        id: SQLJob.getNewUniqueId(`sqlclcommand`),
-        type: `sqlcl`,
-        terse: this.isTerseResults,
-        cmd: this.sql,
-      };
-    } else {
-      queryObject = {
-        id: SQLJob.getNewUniqueId(`query`),
-        type: this.isPrepared ? `prepare_sql_execute` : `sql`,
-        sql: this.sql,
-        terse: this.isTerseResults,
-        rows: rowsToFetch,
-        parameters: this.parameters,
-      };
-    }
+
+    const queryObject = {
+      id: SQLJob.getNewUniqueId(`query`),
+      type: this.isPrepared ? `prepare_sql_execute` : `sql`,
+      sql: this.sql,
+      terse: this.isTerseResults,
+      rows: rowsToFetch,
+      parameters: this.parameters,
+    };
+
     this.rowsToFetch = rowsToFetch;
     let queryResult: QueryResult<T>;
     try {
@@ -212,7 +198,7 @@ export class Query<T> {
       this.removeFromGlobalList();
     }
 
-    if (queryResult.success !== true && !this.isCLCommand) {
+    if (queryResult.success !== true) {
       // Remove the query from the global list to allow for garbage collection
       this.removeFromGlobalList();
 

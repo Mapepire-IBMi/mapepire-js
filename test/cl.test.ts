@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
-import { DaemonServer } from "../src/types";
+import { CLCommandResult, DaemonServer } from "../src/types";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -13,22 +13,32 @@ beforeAll(async () => {
 test("Run CL Command Successfully", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const result = await job.clcommand("WRKACTJOB");
+  const resultCL = await job.clcommand("WRKACTJOB");
+  const resultSQL = await job.sqlclcommand("WRKACTJOB");
   await job.close();
-  expect(result.successful).toBe(true);
-  expect(result.messages).toBeDefined();
-  expect(result.messages.length).toBe(0);
+  const checkResults = (result: CLCommandResult) => {
+    expect(result.successful).toBe(true);
+    expect(result.messages).toBeDefined();
+    expect(result.messages.length).toBe(0);
+  }
+  checkResults(resultCL);
+  checkResults(resultSQL);
 });
 
 test("Invalid CL command", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const result = await job.clcommand("INVALIDCOMMAND");
+  const resultCL = await job.clcommand("INVALIDCOMMAND");
+  const resultSQL = await job.sqlclcommand("INVALIDCOMMAND");
   await job.close();
-  expect(result.messages.length).toBeGreaterThanOrEqual(1);
-  expect(result.successful).toBe(false);
-  expect(result.messages.some(m => m.id === 'CPD0033')).toBeDefined();
-  expect(result.messages.some(m => m.id === 'CPF0006')).toBeDefined();
+  const checkResults = (result: CLCommandResult) => {
+    expect(result.messages.length).toBeGreaterThanOrEqual(1);
+    expect(result.successful).toBe(false);
+    expect(result.messages.some(m => m.id === 'CPD0033')).toBeDefined();
+    expect(result.messages.some(m => m.id === 'CPF0001')).toBeDefined();
+  }
+  checkResults(resultCL);
+  checkResults(resultSQL);
 });
 
 test("Get valid CL command documentation", async () => {

@@ -12,14 +12,13 @@ import { SSHSingleTransport } from "./transports/sshSingleTransport";
 import { WebSocketTransport } from "./transports/websocket";
 import {
   BlobRef,
-  ClCommandResult,
+  CLCommandResult,
   ConnectionResult,
   DaemonServer,
   ExplainResults,
   GetClDocResult,
   GetTraceDataResult,
   JDBCOptions,
-  JobLogEntry,
   MapepireConfig,
   QueryOptions,
   ServerRequest,
@@ -570,8 +569,8 @@ export class SQLJob {
    * @param cmd - The command-line SQL command to execute.
    * @returns A new Query instance for the command.
    */
-  sqlClCommand(cmd: string) {
-    return new Query(this, cmd, { isClCommand: true });
+  async sqlclcommand(cmd: string) {
+    return this.runClCommand(cmd, true);
   }
 
   /**
@@ -581,13 +580,17 @@ export class SQLJob {
    * @returns the command's execution result
    */
   async clcommand(cmd: string) {
+    return this.runClCommand(cmd, false);
+  }
+
+  private async runClCommand(cmd: string, useSQL: boolean) {
     const reqObj = {
-      id: SQLJob.getNewUniqueId(`sqlclcommand`),
-      type: `cl`,
+      id: SQLJob.getNewUniqueId(`${useSQL ? 'sql' : ''}clcommand`),
+      type: useSQL ? `sqlcl` : `cl`,
       cmd
     };
 
-    const result = await this.send<ClCommandResult>(reqObj);
+    const result = await this.send<CLCommandResult>(reqObj);
 
     if (result.success !== true) {
       throw new Error(result.error || `Failed to run CL command`);
@@ -667,7 +670,7 @@ export class SQLJob {
         throw new Error(`TransactionEndType ${type} not valid`);
     }
 
-    return this.query<JobLogEntry>(query).execute();
+    return this.query(query).execute();
   }
 
   /**

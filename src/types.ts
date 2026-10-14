@@ -271,9 +271,6 @@ export interface QueryOptions {
   /** Whether to return terse results. */
   isTerseResults?: boolean;
 
-  /** Whether the command is a CL command. */
-  isClCommand?: boolean;
-
   /** Parameters for the query. */
   parameters?: BindingValue[];
 }
@@ -339,37 +336,12 @@ export interface QueryResult<T> extends ServerResponse {
   output_parms?: ParameterResult[];
 }
 
-/** Interface representing a log entry from a job. */
-export interface JobLogEntry {
-  /** Unique message identifier. */
-  MESSAGE_ID: string;
-
-  /** Severity level of the message. */
-  SEVERITY: string;
-
-  /** Timestamp when the message was generated. */
-  MESSAGE_TIMESTAMP: string;
-
-  /** Library from which the message originated. */
-  FROM_LIBRARY: string;
-
-  /** Program from which the message originated. */
-  FROM_PROGRAM: string;
-
-  /** Type of message. */
-  MESSAGE_TYPE: string;
-
-  /** Main text of the message. */
-  MESSAGE_TEXT: string;
-
-  /** Second level text of the message, if available. */
-  MESSAGE_SECOND_LEVEL_TEXT: string;
-}
-
 /** Interface representing the result of a CL command execution. */
 export interface CLCommandResult extends ServerResponse {
-  /** Log entries generated during the execution of the job. */
-  joblog: JobLogEntry[];
+  /** Whether the command was successful */
+  successful: boolean;
+  /** Log entries generated during the execution of the command. */  
+  messages: CLMessage[];
 }
 
 /** Interface representing the result of a CL command documentation request. */
@@ -381,26 +353,42 @@ export interface GetClDocResult extends ServerResponse {
   uim: string;
 }
 
-export interface CLlMessage {
+export interface CLMessage {
+  /** Unique message identifier. */
   id: string
-  text: string
-  help: string
-  severity: number
-  time: number
-  messageLibrary: string
-  messageFile: string
-  sendingProgram: string
-  sendingInstruction: string
-  sendingType: string
-  receivingProgram: string
-  receivingInstruction: string
-  receivingType: string
-  defaultReply: string
-}
 
-export interface ClCommandResult extends ServerResponse {
-  successful: boolean;
-  messages: CLlMessage[];
+  /** Message type. */  
+  type: string
+
+  /** Severity level of the message. */
+  severity: number
+
+  /** Main text of the message. */
+  text: string
+
+  /** Help/Second level text of the message, if available. */
+  help?: string
+
+  /** Unix Timestamp when the message was generated. */
+  time: number
+
+  /** Library from which the message originated. */
+  messageLibrary: string
+
+  /** Message file from which the message originated. */
+  messageFile: string
+
+  /** Program from which the message originated. */
+  sendingProgram: string
+  
+  /** The instruction in the program from which the message originated. */
+  sendingInstruction: string
+
+  /** Program to which the message was sent. */
+  receivingProgram: string
+
+  /** The instruction in the program to which the message was sent. */
+  receivingInstruction: string
 }
 
 /** Interface representing metadata about a query. */
