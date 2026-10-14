@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
-import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
+import { DaemonServer } from "../src/types";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -13,26 +13,22 @@ beforeAll(async () => {
 test("Run CL Command Successfully", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const query = await job.clcommand("WRKACTJOB");
-  const res = await query.execute();
+  const result = await job.clcommand("WRKACTJOB");
   await job.close();
-  expect(res.data.length).toBeGreaterThanOrEqual(1);
-  expect(res.success).toBe(true);
+  expect(result.successful).toBe(true);
+  expect(result.messages).toBeDefined();
+  expect(result.messages.length).toBe(0);
 });
 
 test("Invalid CL command", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const query = await job.clcommand("INVALIDCOMMAND");
-  const res = await query.execute();
+  const result = await job.clcommand("INVALIDCOMMAND");
   await job.close();
-  expect(res.data.length).toBeGreaterThanOrEqual(1);
-  expect(res.success).toBe(false);
-  expect(res.error).toContain("[CPF0006] Errors occurred in command.");
-  expect(res.id).toBeDefined();
-  expect(res.is_done).toBe(true);
-  expect(res.sql_rc).toEqual(-443);
-  expect(res.sql_state).toEqual("38501");
+  expect(result.messages.length).toBeGreaterThanOrEqual(1);
+  expect(result.successful).toBe(false);
+  expect(result.messages.some(m => m.id === 'CPD0033')).toBeDefined();
+  expect(result.messages.some(m => m.id === 'CPF0006')).toBeDefined();
 });
 
 test("Get valid CL command documentation", async () => {

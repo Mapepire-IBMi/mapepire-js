@@ -179,8 +179,8 @@ export class Query<T> {
     let queryObject;
     if (this.isCLCommand) {
       queryObject = {
-        id: SQLJob.getNewUniqueId(`clcommand`),
-        type: `cl`,
+        id: SQLJob.getNewUniqueId(`sqlclcommand`),
+        type: `sqlcl`,
         terse: this.isTerseResults,
         cmd: this.sql,
       };

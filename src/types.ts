@@ -13,10 +13,10 @@ export interface DaemonServer {
 
   /** The password for authentication. */
   password?: string;
-  
+
   /** Reject unauthorized certificates (optional). */
   rejectUnauthorized?: boolean;
-  
+
   /** Certificate authority (CA) for validating the server's certificate (optional). */
   ca?: string | Buffer;
 }
@@ -33,16 +33,16 @@ export type MapepireTransport = 'websocket' | 'ssh-single' | 'local-single';
 export interface ExecChannel {
   /** Writable stream for sending data to remote process stdin */
   stdin: NodeJS.WritableStream;
-  
+
   /** Readable stream for receiving data from remote process stdout */
   stdout: NodeJS.ReadableStream;
-  
+
   /** Readable stream for receiving data from remote process stderr */
   stderr: NodeJS.ReadableStream;
-  
+
   /** Close the channel */
   close(): void;
-  
+
   /** Register callback for process exit event */
   onExit(cb: (code: number | null, signal?: string) => void): void;
 }
@@ -67,30 +67,30 @@ export type UploadFunction = (localPath: string, remotePath: string) => Promise<
 export interface SSHSingleConfig {
   /** Library-agnostic exec function for remote command execution */
   exec: ExecFunction;
-  
+
   /** Path to the mapepire-server JAR file on the remote system.
    *  When omitted and privateInstall is true, private install will be used if an upload function is available.
    *  Defaults to /opt/mapepire/lib/mapepire/mapepire-server.jar when private install is not used. */
   serverPath?: string;
-  
+
   /** Path to Java executable on the remote system (optional, defaults to 'java') */
   javaPath?: string;
-  
+
   /** Additional JVM arguments (optional) */
   jvmArgs?: string[];
-  
+
   /** Additional server arguments (optional, --single is added automatically) */
   serverArgs?: string[];
-  
+
   /** Working directory for the remote process (optional) */
   cwd?: string;
-  
+
   /** Environment variables for the remote process (optional) */
   env?: NodeJS.ProcessEnv;
-  
+
   /** Startup timeout in milliseconds (default: 10000) */
   startupTimeout?: number;
-  
+
   /** Request timeout in milliseconds (default: 30000) */
   requestTimeout?: number;
 
@@ -165,10 +165,10 @@ export interface LocalSingleConfig {
 export interface MapepireConfig {
   /** Transport type (default: 'websocket') */
   transport?: MapepireTransport;
-  
+
   /** Legacy daemon server configuration (required for 'websocket' transport) */
   daemon?: DaemonServer;
-  
+
   /** SSH single configuration (required for 'ssh-single' transport) */
   sshSingle?: SSHSingleConfig;
 
@@ -181,16 +181,16 @@ export interface MapepireConfig {
 export interface ServerResponse {
   /** Unique identifier for the request. */
   id: string;
-  
+
   /** Indicates whether the request was successful. */
   success: boolean;
-  
+
   /** Error message, if any. */
   error?: string;
-  
+
   /** SQL return code. */
   sql_rc: number;
-  
+
   /** SQL state code. */
   sql_state: string;
 
@@ -213,7 +213,7 @@ export interface ConnectionResult extends ServerResponse {
 export interface VersionCheckResult extends ServerResponse {
   /** The build date of the version. */
   build_date: string;
-  
+
   /** The version string. */
   version: string;
 }
@@ -243,7 +243,7 @@ export type ServerTraceDest = "FILE" | "IN_MEM";
  * A value that can be bound as a parameter in a prepared SQL statement.
  * Use `null` to pass a SQL NULL (e.g. for a NULL BLOB parameter).
  */
-export type BindingValue = string | number | null | (string|number|null)[];
+export type BindingValue = string | number | null | (string | number | null)[];
 
 /**
  * Reference to a BLOB value stored on the mapepire server, returned in query
@@ -270,10 +270,10 @@ export interface BlobRef {
 export interface QueryOptions {
   /** Whether to return terse results. */
   isTerseResults?: boolean;
-  
+
   /** Whether the command is a CL command. */
   isClCommand?: boolean;
-  
+
   /** Parameters for the query. */
   parameters?: BindingValue[];
 }
@@ -282,14 +282,14 @@ export interface QueryOptions {
 export interface SetConfigResult extends ServerResponse {
   /** Destination for trace data. */
   tracedest: ServerTraceDest;
-  
+
   /** Level of tracing set on the server. */
   tracelevel: ServerTraceLevel;
 }
 
 export interface ParameterDetail {
   type: string;
-  mode: "IN"| "OUT" | "INOUT";
+  mode: "IN" | "OUT" | "INOUT";
   precision: number;
   scale?: number;
   name: string;
@@ -313,16 +313,16 @@ export interface ParameterResult {
 export interface QueryResult<T> extends ServerResponse {
   /** Metadata about the query results. */
   metadata: QueryMetaData;
-  
+
   /** Indicates if the query execution is complete. */
   is_done: boolean;
-  
+
   /** Indicates if results were returned. */
   has_results: boolean;
-  
+
   /** Number of rows affected by the query. */
   update_count: number;
-  
+
   /**
    * Data returned from the query.
    *
@@ -343,25 +343,25 @@ export interface QueryResult<T> extends ServerResponse {
 export interface JobLogEntry {
   /** Unique message identifier. */
   MESSAGE_ID: string;
-  
+
   /** Severity level of the message. */
   SEVERITY: string;
-  
+
   /** Timestamp when the message was generated. */
   MESSAGE_TIMESTAMP: string;
-  
+
   /** Library from which the message originated. */
   FROM_LIBRARY: string;
-  
+
   /** Program from which the message originated. */
   FROM_PROGRAM: string;
-  
+
   /** Type of message. */
   MESSAGE_TYPE: string;
-  
+
   /** Main text of the message. */
   MESSAGE_TEXT: string;
-  
+
   /** Second level text of the message, if available. */
   MESSAGE_SECOND_LEVEL_TEXT: string;
 }
@@ -381,16 +381,38 @@ export interface GetClDocResult extends ServerResponse {
   uim: string;
 }
 
+export interface CLlMessage {
+  id: string
+  text: string
+  help: string
+  severity: number
+  time: number
+  messageLibrary: string
+  messageFile: string
+  sendingProgram: string
+  sendingInstruction: string
+  sendingType: string
+  receivingProgram: string
+  receivingInstruction: string
+  receivingType: string
+  defaultReply: string
+}
+
+export interface ClCommandResult extends ServerResponse {
+  successful: boolean;
+  messages: CLlMessage[];
+}
+
 /** Interface representing metadata about a query. */
 export interface QueryMetaData {
   /** Number of columns returned by the query. */
   column_count?: number;
-  
+
   /** Metadata for each column. */
   columns?: ColumnMetaData[];
-  
+
   parameters?: ParameterDetail[];
-  
+
   /** Unique job identifier for the query. */
   job?: string;
 }
@@ -399,13 +421,13 @@ export interface QueryMetaData {
 export interface ColumnMetaData {
   /** Display size of the column. */
   display_size: number;
-  
+
   /** Label of the column. */
   label: string;
-  
+
   /** Name of the column. */
   name: string;
-  
+
   /** Type of the column. */
   type: string;
 
@@ -442,14 +464,14 @@ export interface JDBCOptions {
   // Format properties
   "naming"?: "sql" | "system";
   "date format"?:
-    | "mdy"
-    | "dmy"
-    | "ymd"
-    | "usa"
-    | "iso"
-    | "eur"
-    | "jis"
-    | "julian";
+  | "mdy"
+  | "dmy"
+  | "ymd"
+  | "usa"
+  | "iso"
+  | "eur"
+  | "jis"
+  | "julian";
   "date separator"?: "/" | "-" | "." | "," | "b";
   "decimal separator"?: "." | ",";
   "time format"?: "hms" | "usa" | "iso" | "eur" | "jis";
@@ -480,19 +502,19 @@ export interface JDBCOptions {
   "server trace"?: "0" | "2" | "4" | "8" | "16" | "32" | "64";
   "thread used"?: boolean;
   "toolbox trace"?:
-    | ""
-    | "none"
-    | "datastream"
-    | "diagnostic"
-    | "error"
-    | "warning"
-    | "conversion"
-    | "jdbc"
-    | "pcml"
-    | "all"
-    | "proxy"
-    | "thread"
-    | "information";
+  | ""
+  | "none"
+  | "datastream"
+  | "diagnostic"
+  | "error"
+  | "warning"
+  | "conversion"
+  | "jdbc"
+  | "pcml"
+  | "all"
+  | "proxy"
+  | "thread"
+  | "information";
   "trace"?: boolean;
   "translate binary"?: boolean;
   "translate boolean"?: boolean;
@@ -505,33 +527,33 @@ export interface JDBCOptions {
   "cursor sensitivity"?: "asensitive" | "insensitive" | "sensitive";
   "database name"?: string;
   "decfloat rounding mode"?:
-    | "half even"
-    | "half up"
-    | "down"
-    | "ceiling"
-    | "floor"
-    | "up"
-    | "half down";
+  | "half even"
+  | "half up"
+  | "down"
+  | "ceiling"
+  | "floor"
+  | "up"
+  | "half down";
   "maximum precision"?: "31" | "63";
   "maximum scale"?: string;
   "minimum divide scale"?:
-    | "0"
-    | "1"
-    | "2"
-    | "3"
-    | "4"
-    | "5"
-    | "6"
-    | "7"
-    | "8"
-    | "9";
+  | "0"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9";
   "package ccsid"?: "1200" | "13488" | "system";
   "transaction isolation"?:
-    | "none"
-    | "read uncommitted"
-    | "read committed"
-    | "repeatable read"
-    | "serializable";
+  | "none"
+  | "read uncommitted"
+  | "read committed"
+  | "repeatable read"
+  | "serializable";
   "translate hex"?: "character" | "binary";
   "true autocommit"?: boolean;
   "XA loosely coupled support"?: "0" | "1";

@@ -12,6 +12,7 @@ import { SSHSingleTransport } from "./transports/sshSingleTransport";
 import { WebSocketTransport } from "./transports/websocket";
 import {
   BlobRef,
+  ClCommandResult,
   ConnectionResult,
   DaemonServer,
   ExplainResults,
@@ -569,8 +570,30 @@ export class SQLJob {
    * @param cmd - The command-line SQL command to execute.
    * @returns A new Query instance for the command.
    */
-  clcommand(cmd: string): Query<any> {
+  sqlClCommand(cmd: string) {
     return new Query(this, cmd, { isClCommand: true });
+  }
+
+  /**
+   * Runs a CL command
+   * 
+   * @param cmd - the CL command to execute
+   * @returns the command's execution result
+   */
+  async clcommand(cmd: string) {
+    const reqObj = {
+      id: SQLJob.getNewUniqueId(`sqlclcommand`),
+      type: `cl`,
+      cmd
+    };
+
+    const result = await this.send<ClCommandResult>(reqObj);
+
+    if (result.success !== true) {
+      throw new Error(result.error || `Failed to run CL command`);
+    }
+
+    return result;
   }
 
   /**
