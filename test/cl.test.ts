@@ -17,7 +17,7 @@ test("Run CL Command Successfully", async () => {
   const resultSQL = await job.sqlclcommand("WRKACTJOB");
   await job.close();
   const checkResults = (result: CLCommandResult) => {
-    expect(result.successful).toBe(true);
+    expect(result.success).toBe(true);
     expect(result.messages).toBeDefined();
     expect(result.messages.length).toBe(0);
   }
@@ -28,17 +28,20 @@ test("Run CL Command Successfully", async () => {
 test("Invalid CL command", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const resultCL = await job.clcommand("INVALIDCOMMAND");
-  const resultSQL = await job.sqlclcommand("INVALIDCOMMAND");
+  const resultCL = await job.clcommand("SNDMSG");
+  const resultSQL = await job.sqlclcommand("SNDMSG");
   await job.close();
   const checkResults = (result: CLCommandResult) => {
-    expect(result.messages.length).toBeGreaterThanOrEqual(1);
-    expect(result.successful).toBe(false);
+    expect(result.messages.length).toBeGreaterThanOrEqual(2);
+    expect(result.success).toBe(false);
     expect(result.messages.some(m => m.id === 'CPD0033')).toBeDefined();
     expect(result.messages.some(m => m.id === 'CPF0001')).toBeDefined();
   }
   checkResults(resultCL);
+
   checkResults(resultSQL);
+  expect(resultSQL.sql_rc).toBe(-443);
+  expect(resultSQL.sql_state).toBe("38501");
 });
 
 test("Get valid CL command documentation", async () => {

@@ -189,10 +189,10 @@ export interface ServerResponse {
   error?: string;
 
   /** SQL return code. */
-  sql_rc: number;
+  sql_rc?: number;
 
   /** SQL state code. */
-  sql_state: string;
+  sql_state?: string;
 
   /** Execution time in millis. */
   execution_time: number;
@@ -336,13 +336,14 @@ export interface QueryResult<T> extends ServerResponse {
   output_parms?: ParameterResult[];
 }
 
-/** Interface representing the result of a CL command execution. */
-export interface CLCommandResult extends ServerResponse {
-  /** Whether the command was successful */
-  successful: boolean;
+/** Interface representing the result of a CL command execution through SQL. */
+export interface SqlCLCommandResult extends ServerResponse {
   /** Log entries generated during the execution of the command. */  
   messages: CLMessage[];
 }
+
+/** Interface representing the result of a CL command execution through CL. */
+export interface CLCommandResult extends Omit<SqlCLCommandResult, "sql_rc" | "sql_state"> {}
 
 /** Interface representing the result of a CL command documentation request. */
 export interface GetClDocResult extends ServerResponse {

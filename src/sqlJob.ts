@@ -25,6 +25,7 @@ import {
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
+  SqlCLCommandResult,
   VersionCheckResult
 } from "./types";
 
@@ -569,8 +570,8 @@ export class SQLJob {
    * @param cmd - The command-line SQL command to execute.
    * @returns A new Query instance for the command.
    */
-  async sqlclcommand(cmd: string) {
-    return this.runClCommand(cmd, true);
+  async sqlclcommand(cmd: string): Promise<SqlCLCommandResult> {
+    return await this.runClCommand(cmd, true);
   }
 
   /**
@@ -579,24 +580,18 @@ export class SQLJob {
    * @param cmd - the CL command to execute
    * @returns the command's execution result
    */
-  async clcommand(cmd: string) {
+  async clcommand(cmd: string): Promise<CLCommandResult> {
     return this.runClCommand(cmd, false);
   }
 
-  private async runClCommand(cmd: string, useSQL: boolean) {
+  private async runClCommand(cmd: string, useSQL: boolean): Promise<CLCommandResult | SqlCLCommandResult> {
     const reqObj = {
       id: SQLJob.getNewUniqueId(`${useSQL ? 'sql' : ''}clcommand`),
       type: useSQL ? `sqlcl` : `cl`,
       cmd
     };
 
-    const result = await this.send<CLCommandResult>(reqObj);
-
-    if (result.success !== true) {
-      throw new Error(result.error || `Failed to run CL command`);
-    }
-
-    return result;
+    return await this.send<CLCommandResult>(reqObj);
   }
 
   /**
