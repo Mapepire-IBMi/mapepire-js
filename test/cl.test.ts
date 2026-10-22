@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
-import { CLCommandResult, DaemonServer } from "../src/types";
+import { CLCommandResult, DaemonServer, SqlCLCommandResult } from "../src/types";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -13,13 +13,13 @@ beforeAll(async () => {
 test("Run CL Command Successfully", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const resultCL = await job.clcommand("WRKACTJOB");
-  const resultSQL = await job.sqlclcommand("WRKACTJOB");
+  const resultCL = await job.rcclcommand("WRKACTJOB");
+  const resultSQL = await job.clcommand("WRKACTJOB");
   await job.close();
   const checkResults = (result: CLCommandResult) => {
     expect(result.success).toBe(true);
-    expect(result.messages).toBeDefined();
-    expect(result.messages.length).toBe(0);
+    expect(result.data).toBeDefined();
+    expect(result.data.length).toBe(0);
   }
   checkResults(resultCL);
   checkResults(resultSQL);
@@ -28,14 +28,14 @@ test("Run CL Command Successfully", async () => {
 test("Invalid CL command", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const resultCL = await job.clcommand("SNDMSG");
-  const resultSQL = await job.sqlclcommand("SNDMSG");
+  const resultCL = await job.rcclcommand("SNDMSG");
+  const resultSQL = await job.clcommand("SNDMSG");
   await job.close();
-  const checkResults = (result: CLCommandResult) => {
-    expect(result.messages.length).toBeGreaterThanOrEqual(2);
+  const checkResults = (result: CLCommandResult | SqlCLCommandResult) => {
+    expect(result.data.length).toBeGreaterThanOrEqual(2);
     expect(result.success).toBe(false);
-    expect(result.messages.some(m => m.id === 'CPD0033')).toBeDefined();
-    expect(result.messages.some(m => m.id === 'CPF0001')).toBeDefined();
+    expect(result.data.some(m => m.id === 'CPD0033')).toBeDefined();
+    expect(result.data.some(m => m.id === 'CPF0001')).toBeDefined();
   }
   checkResults(resultCL);
 

@@ -338,12 +338,12 @@ export interface QueryResult<T> extends ServerResponse {
 
 /** Interface representing the result of a CL command execution through SQL. */
 export interface SqlCLCommandResult extends ServerResponse {
-  /** Log entries generated during the execution of the command. */  
-  messages: CLMessage[];
+  /** Log entries generated during the execution of the command. */
+  data: CLMessage[]
 }
 
 /** Interface representing the result of a CL command execution through CL. */
-export interface CLCommandResult extends Omit<SqlCLCommandResult, "sql_rc" | "sql_state"> {}
+export interface CLCommandResult extends Omit<SqlCLCommandResult, "sql_rc" | "sql_state"> { }
 
 /** Interface representing the result of a CL command documentation request. */
 export interface GetClDocResult extends ServerResponse {
@@ -358,7 +358,7 @@ export interface CLMessage {
   /** Unique message identifier. */
   id: string
 
-  /** Message type. */  
+  /** Message type. */
   type: string
 
   /** Severity level of the message. */
@@ -381,7 +381,7 @@ export interface CLMessage {
 
   /** Program from which the message originated. */
   sendingProgram: string
-  
+
   /** The instruction in the program from which the message originated. */
   sendingInstruction: string
 
