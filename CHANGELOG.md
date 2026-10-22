@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-10-22
+
+### Added
+- **SSH Single `privateInstall` & fallback**: Added `privateInstall` boolean option to `SSHSingleConfig` with automatic fallback to private install if `serverPath` is not present remotely.
+- **`Pool.fetchBlob()` helper**: Added `fetchBlob` method to `Pool` to retrieve BLOB bytes directly without needing the underlying `SQLJob`.
+- **`blob_as_url` column metadata**: Added `blob_as_url` boolean field to `ColumnMetadata`.
+- **`UrlToDaemon` export**: Exported `UrlToDaemon` helper function from root package index.
+
+### Fixed
+- Converted internal enum definitions in `states.ts` to `const` objects with union types for better JS/TS interop.
+- Resolved TypeScript strict-mode errors across test suites.
+
+### Changed
+- Upgraded TypeScript to `^5.0.0` and Vitest to `4.1.12`.
+- Added Dependabot configuration for npm dependencies and GitHub Actions.
+
 ## [1.0.1] - 2026-10-01
 
 ### Added
