@@ -12,19 +12,20 @@ import { SSHSingleTransport } from "./transports/sshSingleTransport";
 import { WebSocketTransport } from "./transports/websocket";
 import {
   BlobRef,
+  CLCommandResult,
   ConnectionResult,
   DaemonServer,
   ExplainResults,
   GetClDocResult,
   GetTraceDataResult,
   JDBCOptions,
-  JobLogEntry,
   MapepireConfig,
   QueryOptions,
   ServerRequest,
   ServerTraceDest,
   ServerTraceLevel,
   SetConfigResult,
+  SqlCLCommandResult,
   VersionCheckResult
 } from "./types";
 
@@ -569,8 +570,28 @@ export class SQLJob {
    * @param cmd - The command-line SQL command to execute.
    * @returns A new Query instance for the command.
    */
-  clcommand(cmd: string): Query<any> {
-    return new Query(this, cmd, { isClCommand: true });
+  async clcommand(cmd: string): Promise<SqlCLCommandResult> {
+    return await this.runClCommand<SqlCLCommandResult>(cmd, true);
+  }
+
+  /**
+   * Runs a CL command in dedicated remote command job
+   * 
+   * @param cmd - the CL command to execute
+   * @returns the command's execution result
+   */
+  async rcclcommand(cmd: string): Promise<CLCommandResult> {
+    return this.runClCommand<CLCommandResult>(cmd, false);
+  }
+
+  private async runClCommand<T extends CLCommandResult | SqlCLCommandResult>(cmd: string, useSQL: boolean): Promise<T> {
+    const reqObj = {
+      id: SQLJob.getNewUniqueId(`${useSQL ? 'sql' : ''}clcommand`),
+      type: useSQL ? `cl` : `rccl`,
+      cmd
+    };
+
+    return await this.send<T>(reqObj);
   }
 
   /**
@@ -644,7 +665,7 @@ export class SQLJob {
         throw new Error(`TransactionEndType ${type} not valid`);
     }
 
-    return this.query<JobLogEntry>(query).execute();
+    return this.query(query).execute();
   }
 
   /**

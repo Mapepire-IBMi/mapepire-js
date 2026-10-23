@@ -1,7 +1,7 @@
 import { beforeAll, expect, test } from "vitest";
-import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
 import { getRootCertificate } from "../src/tls";
+import { CLCommandResult, DaemonServer, SqlCLCommandResult } from "../src/types";
 import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
@@ -13,26 +13,35 @@ beforeAll(async () => {
 test("Run CL Command Successfully", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const query = await job.clcommand("WRKACTJOB");
-  const res = await query.execute();
+  const resultCL = await job.rcclcommand("WRKACTJOB");
+  const resultSQL = await job.clcommand("WRKACTJOB");
   await job.close();
-  expect(res.data.length).toBeGreaterThanOrEqual(1);
-  expect(res.success).toBe(true);
+  const checkResults = (result: CLCommandResult) => {
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(result.data.length).toBe(0);
+  }
+  checkResults(resultCL);
+  checkResults(resultSQL);
 });
 
 test("Invalid CL command", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const query = await job.clcommand("INVALIDCOMMAND");
-  const res = await query.execute();
+  const resultCL = await job.rcclcommand("SNDMSG");
+  const resultSQL = await job.clcommand("SNDMSG");
   await job.close();
-  expect(res.data.length).toBeGreaterThanOrEqual(1);
-  expect(res.success).toBe(false);
-  expect(res.error).toContain("[CPF0006] Errors occurred in command.");
-  expect(res.id).toBeDefined();
-  expect(res.is_done).toBe(true);
-  expect(res.sql_rc).toEqual(-443);
-  expect(res.sql_state).toEqual("38501");
+  const checkResults = (result: CLCommandResult | SqlCLCommandResult) => {
+    expect(result.data.length).toBeGreaterThanOrEqual(2);
+    expect(result.success).toBe(false);
+    expect(result.data.some(m => m.id === 'CPD0033')).toBeDefined();
+    expect(result.data.some(m => m.id === 'CPF0001')).toBeDefined();
+  }
+  checkResults(resultCL);
+
+  checkResults(resultSQL);
+  expect(resultSQL.sql_rc).toBe(-443);
+  expect(resultSQL.sql_state).toBe("38501");
 });
 
 test("Get valid CL command documentation", async () => {
