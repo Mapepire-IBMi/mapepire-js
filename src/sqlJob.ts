@@ -447,14 +447,17 @@ export class SQLJob {
    */
   async execute<T>(sql: string, opts?: QueryOptions) {
     const query = this.query<T>(sql, opts);
-    const result = await query.execute();
-    await query.close();
+    try {
+      const result = await query.execute();
 
-    if (result.error) {
-      throw new Error(result.error);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result;
+    } finally {
+      await query.close().catch(() => {});
     }
-
-    return result;
   }
 
   /**
@@ -634,18 +637,21 @@ export class SQLJob {
    * @returns A promise that resolves to the count of pending transactions.
    */
   async getPendingTransactions() {
-    const rows = await this.query<{ THECOUNT: number }>(
-      TransactionCountQuery
-    ).execute(1);
+    const query = this.query<{ THECOUNT: number }>(TransactionCountQuery);
+    try {
+      const rows = await query.execute(1);
 
-    if (
-      rows.success &&
-      rows.data &&
-      rows.data.length === 1 &&
-      rows.data[0].THECOUNT
-    )
-      return rows.data[0].THECOUNT;
-    return 0;
+      if (
+        rows.success &&
+        rows.data &&
+        rows.data.length === 1 &&
+        rows.data[0].THECOUNT
+      )
+        return rows.data[0].THECOUNT;
+      return 0;
+    } finally {
+      await query.close().catch(() => {});
+    }
   }
 
   /**
@@ -665,7 +671,12 @@ export class SQLJob {
         throw new Error(`TransactionEndType ${type} not valid`);
     }
 
-    return this.query(query).execute();
+    const endQuery = this.query(query);
+    try {
+      return await endQuery.execute();
+    } finally {
+      await endQuery.close().catch(() => {});
+    }
   }
 
   /**

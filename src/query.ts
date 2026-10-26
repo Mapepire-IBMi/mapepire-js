@@ -1,4 +1,5 @@
 import { SQLJob } from "./sqlJob";
+import { JobStatus } from "./states";
 import { BindingValue, QueryOptions, QueryResult, ServerResponse } from "./types";
 
 /**
@@ -51,6 +52,11 @@ export class Query<T> {
    * Indicates if the results should be terse.
    */
   private isTerseResults: boolean;
+
+  /**
+   * Indicates if a close request has already been handled for this query.
+   */
+  private isClosed: boolean = false;
 
   /**
    * Constructs a new Query instance.
@@ -198,6 +204,9 @@ export class Query<T> {
       this.removeFromGlobalList();
     }
 
+    // Set correlationId early so close() can clean up on the server if needed
+    this.correlationId = queryResult.id;
+
     if (queryResult.success !== true) {
       // Remove the query from the global list to allow for garbage collection
       this.removeFromGlobalList();
@@ -216,7 +225,6 @@ export class Query<T> {
 
       throw new Error(errorList.join(", "));
     }
-    this.correlationId = queryResult.id;
 
     return queryResult;
   }
@@ -277,21 +285,25 @@ export class Query<T> {
    * @returns A promise that resolves when the query is closed.
    */
   public async close() {
-    // Remove the query from the global list to allow for garbage collection
     this.removeFromGlobalList();
 
-    if (this.correlationId && this.state !== "RUN_DONE") {
-      this.state = "RUN_DONE";
-      let queryObject = {
-        id: SQLJob.getNewUniqueId(`sqlclose`),
-        cont_id: this.correlationId,
-        type: `sqlclose`,
-      };
-
-      return this.job.send<ServerResponse>(queryObject);
-    } else if (undefined === this.correlationId) {
-      this.state = "RUN_DONE";
+    if (this.isClosed) {
+      return;
     }
+    this.isClosed = true;
+    this.state = "RUN_DONE";
+
+    if (!this.correlationId || this.job.getStatus() === JobStatus.ENDED) {
+      return;
+    }
+
+    let queryObject = {
+      id: SQLJob.getNewUniqueId(`sqlclose`),
+      cont_id: this.correlationId,
+      type: `sqlclose`,
+    };
+
+    return this.job.send<ServerResponse>(queryObject);
   }
 
   /**
