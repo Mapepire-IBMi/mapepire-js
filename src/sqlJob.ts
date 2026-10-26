@@ -274,7 +274,7 @@ export class SQLJob {
             throw new Error('sshSingle configuration is required for ssh-single transport');
           }
           transportOptions = config.sshSingle;
-          technique = 'cli';
+          technique = config.sshSingleTechnique ?? 'cli';
           connectionParams = {};
           break;
 
