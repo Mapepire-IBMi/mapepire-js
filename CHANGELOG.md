@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-26
+
+### Added
+- **`SQLJob.rcclcommand()`**: Runs a CL command in the dedicated remote command job instead of the SQL job, so repeated commands no longer slow down as the job log grows. Requires mapepire-server 2.5.0 or later.
+- **`sshSingleTechnique` option**: Added to `MapepireConfig` to choose the connection technique (`'cli'` or `'tcp'`) for the `ssh-single` transport; defaults to `'cli'`. Use `'tcp'` to work around invalid data for CCSID 65535 columns.
+- **CL command result types**: Added `CLCommandResult`, `SqlCLCommandResult` and `CLMessage` types.
+
+### Fixed
+- Sending `sqlclose` on `Query.close()` to prevent a server-side prepared statement leak.
+- `Pool.getJob()` no longer throws when all jobs have ended; it returns `undefined`.
+- `SQLJob.execute()`, `getPendingTransactions()` and `endTransaction()` now always close their underlying query, even on error.
+
+### Changed
+- **Breaking: `SQLJob.clcommand()` now returns `Promise<SqlCLCommandResult>`** instead of a `Query`. Replace `job.clcommand(cmd).execute()` with `await job.clcommand(cmd)`.
+- **Breaking: `clcommand()` result shape**: `data` is now an array of `CLMessage` objects (`id`, `type`, `severity`, `text`, `help`, `time`, ...) rather than raw job log rows, and `metadata` / `is_done` are no longer returned. Failed commands still resolve with `success: false` instead of throwing.
+- **Breaking: removed `QueryOptions.isClCommand`**.
+- Updated the bundled mapepire-server from 2.3.6 to 2.5.1.
+- `ServerResponse.sql_rc` and `sql_state` are now optional.
+
 ## [1.0.2] - 2026-10-22
 
 ### Added

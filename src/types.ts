@@ -342,13 +342,13 @@ export interface QueryResult<T> extends ServerResponse {
   output_parms?: ParameterResult[];
 }
 
-/** Interface representing the result of a CL command execution through SQL. */
+/** Result of a CL command run in the SQL job (`SQLJob.clcommand`). */
 export interface SqlCLCommandResult extends ServerResponse {
   /** Log entries generated during the execution of the command. */
   data: CLMessage[]
 }
 
-/** Interface representing the result of a CL command execution through CL. */
+/** Result of a CL command run in the remote command job (`SQLJob.rcclcommand`). */
 export interface CLCommandResult extends Omit<SqlCLCommandResult, "sql_rc" | "sql_state"> { }
 
 /** Interface representing the result of a CL command documentation request. */

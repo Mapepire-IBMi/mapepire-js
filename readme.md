@@ -6,10 +6,11 @@ mapepire-js is the pure-JS client (written in TS) for connecting to Db2 for IBM 
 
 ### Transport Modes
 
-mapepire-js supports two transport modes:
+mapepire-js supports three transport modes:
 
 - **WebSocket Mode** (default): Connect to a persistent Mapepire daemon server via WebSockets
 - **SSH Single Mode**: Library-agnostic SSH transport that works with any SSH library via an exec function
+- **Local Single Mode** (IBM i only): Launch mapepire-server as a local child process, with no daemon, SSH or credentials needed
 
 📖 [See detailed transport documentation](src/transports/README.md)
 
