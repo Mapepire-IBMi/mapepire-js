@@ -325,3 +325,12 @@ test("pool.fetchBlob() retrieves BLOB bytes without needing the underlying SQLJo
   await pool.execute(`DROP TABLE ${TABLE}`).catch(() => {});
   await pool.end();
 });
+
+test("getJob returns undefined without throwing when all jobs have ended", async () => {
+  const pool = new Pool({ creds, maxSize: 2, startingSize: 1 });
+  const [job] = await pool.init();
+  await (job as any).dispose();
+
+  expect(() => pool.getJob()).not.toThrow();
+  expect(pool.getJob()).toBeUndefined();
+});
