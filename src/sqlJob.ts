@@ -568,20 +568,31 @@ export class SQLJob {
   }
 
   /**
-   * Creates a command-line SQL query.
+   * Runs a CL command through the SQL job (using `QSYS2.QCMDEXC`). The resulting
+   * messages are read from the job log.
    *
-   * @param cmd - The command-line SQL command to execute.
-   * @returns A new Query instance for the command.
+   * Does not throw when the command fails: the promise resolves with
+   * `success: false`, the command messages in `data`, and `sql_rc` / `sql_state`.
+   * To run the command in the dedicated remote command job instead, see
+   * {@link rcclcommand}.
+   *
+   * @param cmd - The CL command to execute.
+   * @returns The command's execution result.
    */
   async clcommand(cmd: string): Promise<SqlCLCommandResult> {
     return await this.runClCommand<SqlCLCommandResult>(cmd, true);
   }
 
   /**
-   * Runs a CL command in dedicated remote command job
-   * 
-   * @param cmd - the CL command to execute
-   * @returns the command's execution result
+   * Runs a CL command in the dedicated remote command job, so the SQL job (and
+   * its job log) is not used. Preferred for repeated or long-lived workloads.
+   *
+   * Requires mapepire-server 2.5.0 or later. Does not throw when the command
+   * fails: the promise resolves with `success: false` and the command messages
+   * in `data`.
+   *
+   * @param cmd - The CL command to execute.
+   * @returns The command's execution result.
    */
   async rcclcommand(cmd: string): Promise<CLCommandResult> {
     return this.runClCommand<CLCommandResult>(cmd, false);
