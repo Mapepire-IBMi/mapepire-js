@@ -50,6 +50,20 @@ await job.close();
 client.end();  // caller manages SSH client lifetime
 ```
 
+#### Troubleshooting: invalid data for CCSID 65535 columns
+
+By default, SSH single sends `technique: 'cli'`, so the server uses the native `jdbc:db2:*LOCAL` driver.
+With this driver, columns and system data with CCSID 65535 can come back invalid. Set
+`sshSingleTechnique: 'tcp'` to have the server connect through jt400 (`jdbc:as400:localhost`) instead:
+
+```typescript
+const job = SQLJob.withConfig({
+  transport: 'ssh-single', 
+  sshSingleTechnique: 'tcp', 
+  sshSingle: createSSH2Connection(client) 
+});
+```
+
 ### 3. Local Single Transport (Authentication-Free, IBM i only)
 Launch mapepire-server as a local child process — no daemon, no SSH, no credentials.
 The current IBM i job's user profile is used automatically via `jdbc:default:connection`.

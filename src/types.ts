@@ -166,6 +166,12 @@ export interface MapepireConfig {
   /** Transport type (default: 'websocket') */
   transport?: MapepireTransport;
 
+  /**
+   * Connection technique for the 'ssh-single' transport: 'cli' (native JDBC driver)
+   * or 'tcp' (jt400). Defaults to 'cli'.
+   */
+  sshSingleTechnique?: 'tcp' | 'cli';
+
   /** Legacy daemon server configuration (required for 'websocket' transport) */
   daemon?: DaemonServer;
 
