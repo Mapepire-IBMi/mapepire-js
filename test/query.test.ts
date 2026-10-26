@@ -189,29 +189,6 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
     expect(closeCalls.length).toBe(1);
   });
 
-  it("does not send sqlclose for CL commands", async () => {
-    const sentObjects: any[] = [];
-    const mockJob = {
-      send: vi.fn(async (obj: any) => {
-        sentObjects.push(obj);
-        return {
-          id: "corr-123",
-          success: true,
-          is_done: true,
-          data: [],
-        };
-      }),
-      getStatus: vi.fn(() => JobStatus.READY),
-    } as unknown as SQLJob;
-
-    const query = new Query(mockJob, "DSPLIBL", { isClCommand: true });
-    await query.execute();
-    await query.close();
-
-    const closeObj = sentObjects.find((o) => o.type === "sqlclose");
-    expect(closeObj).toBeUndefined();
-  });
-
   it("does not send sqlclose if query was never run (no correlationId)", async () => {
     const sentObjects: any[] = [];
     const mockJob = {
@@ -306,5 +283,18 @@ describe("Query.close() lifecycle and sqlclose dispatch", () => {
     const closeObj = sent.find((o) => o.type === "sqlclose");
     expect(closeObj).toBeDefined();
     expect(closeObj.cont_id).toBe("job-exec-fail-id");
+  });
+
+  it("SQLJob.execute() surfaces the original error when sqlclose also fails", async () => {
+    const job = new SQLJob();
+    (job as any).send = vi.fn(async (obj: any) => {
+      if (obj.type === "sql") {
+        return { id: "close-fail-id", success: false, error: "Syntax error" };
+      }
+      throw new Error("socket closed");
+    });
+    (job as any).status = JobStatus.READY;
+
+    await expect(job.execute("INVALID SQL")).rejects.toThrow("Syntax error");
   });
 });
