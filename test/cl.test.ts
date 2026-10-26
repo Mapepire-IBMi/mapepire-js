@@ -13,8 +13,8 @@ beforeAll(async () => {
 test("Run CL Command Successfully", async () => {
   const job = new SQLJob();
   await job.connect(creds);
-  const resultCL = await job.rcclcommand("WRKACTJOB");
-  const resultSQL = await job.clcommand("WRKACTJOB");
+  const resultCL = await job.rcclcommand("CHKOBJ OBJ(QSYS) OBJTYPE(*LIB)");
+  const resultSQL = await job.clcommand("CHKOBJ OBJ(QSYS) OBJTYPE(*LIB)");
   await job.close();
   const checkResults = (result: CLCommandResult) => {
     expect(result.success).toBe(true);
