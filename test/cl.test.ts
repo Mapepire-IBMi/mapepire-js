@@ -60,3 +60,19 @@ test("Get invalid CL command documentation", async () => {
   await expect(job.getClDoc("/QSYS.LIB/INVALID.CMD")).rejects.toThrow("CPF9801 Object INVALID in library QSYS not found.");
   await job.close();
 });
+
+test("Get valid CL command definition XML", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  const res = await job.getCmdXml("/QSYS.LIB/CRTLIB.CMD");
+  await job.close();
+  expect(res.success).toBe(true);
+  expect(res.xml.includes("QcdCLCmd")).toBeTruthy();
+});
+
+test("Get invalid CL command definition XML", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+  await expect(job.getCmdXml("/QSYS.LIB/INVALID.CMD")).rejects.toThrow("CPF9801 Object INVALID in library QSYS not found.");
+  await job.close();
+});

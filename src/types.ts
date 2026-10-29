@@ -360,6 +360,12 @@ export interface GetClDocResult extends ServerResponse {
   uim: string;
 }
 
+/** Interface representing the result of a CL command definition XML request. */
+export interface GetCmdXmlResult extends ServerResponse {
+  /** The extended command definition XML, as returned by the QCDRCMDD API in CMDD0200 format. */
+  xml: string;
+}
+
 export interface CLMessage {
   /** Unique message identifier. */
   id: string
