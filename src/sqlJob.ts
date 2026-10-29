@@ -17,6 +17,7 @@ import {
   DaemonServer,
   ExplainResults,
   GetClDocResult,
+  GetCmdXmlResult,
   GetTraceDataResult,
   JDBCOptions,
   MapepireConfig,
@@ -456,7 +457,7 @@ export class SQLJob {
 
       return result;
     } finally {
-      await query.close().catch(() => {});
+      await query.close().catch(() => { });
     }
   }
 
@@ -631,6 +632,30 @@ export class SQLJob {
   }
 
   /**
+   * Retrieves the extended command definition XML for a CL command (the raw
+   * command definition, as returned by the QCDRCMDD API in CMDD0200 format,
+   * not generated HTML or UIM help documentation).
+   *
+   * @param path - The fully qualified IFS path of the command object (e.g. `/QSYS.LIB/CRTUSRPRF.CMD`).
+   * @returns A promise that resolves to the CL command definition XML result.
+   */
+  async getCmdXml(path: string): Promise<GetCmdXmlResult> {
+    const reqObj = {
+      id: SQLJob.getNewUniqueId(),
+      type: `getcmdxml`,
+      path,
+    };
+
+    const result = await this.send<GetCmdXmlResult>(reqObj);
+
+    if (result.success !== true) {
+      throw new Error(result.error || `Failed to get CL command definition XML`);
+    }
+
+    return result;
+  }
+
+  /**
    * Checks if the job is under commit control based on the transaction isolation level.
    *
    * @returns A boolean indicating if the job is under commit control.
@@ -661,7 +686,7 @@ export class SQLJob {
         return rows.data[0].THECOUNT;
       return 0;
     } finally {
-      await query.close().catch(() => {});
+      await query.close().catch(() => { });
     }
   }
 
@@ -686,7 +711,7 @@ export class SQLJob {
     try {
       return await endQuery.execute();
     } finally {
-      await endQuery.close().catch(() => {});
+      await endQuery.close().catch(() => { });
     }
   }
 
