@@ -3,20 +3,25 @@
  * Handles chunked data and incomplete messages
  */
 
+import { Logger, dummyLogger } from '../logger';
+
 export class LineBuffer {
   private buffer: string = '';
   private onLine?: (line: string) => void;
   private onError?: (error: Error, data: string) => void;
   private trace?: (message: string) => void;
+  private logger: Logger;
 
   constructor(options?: {
     onLine?: (line: string) => void;
     onError?: (error: Error, data: string) => void;
     trace?: (message: string) => void;
+    logger?: Logger;
   }) {
     this.onLine = options?.onLine;
     this.onError = options?.onError;
     this.trace = options?.trace;
+    this.logger = options?.logger ?? dummyLogger;
   }
 
   /**
@@ -46,7 +51,7 @@ export class LineBuffer {
               this.onError(contextError, line);
             } else {
               // If no error handler, log to console to avoid silent failures
-              console.error('LineBuffer: Unhandled error processing line:', e, 'Line:', line);
+              this.logger.error('[mapepire] LineBuffer: unhandled error processing line:', e, 'Line:', line);
             }
           }
         }
