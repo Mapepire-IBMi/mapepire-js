@@ -5,6 +5,7 @@ import { EventEmitter } from "stream";
 import { Query } from "./query";
 import { ExplainType, JobStatus, TransactionEndType } from "./states";
 import { Transport } from "./transport";
+import { Logger, dummyLogger } from "./logger";
 import { LocalSingleTransport } from "./transports/localSingleTransport";
 import { connectNodeSSH, createNodeSSHConnection } from "./transports/nodeSSHHelper";
 import { connectSSH2, createSSH2Connection } from "./transports/ssh2Helper";
@@ -54,6 +55,7 @@ export class SQLJob {
   private db2Server: DaemonServer | undefined;
   protected responseEmitter: EventEmitter = new EventEmitter();
   protected status: JobStatus = JobStatus.NOT_STARTED;
+  protected logger: Logger;
 
   protected traceFile: string | undefined;
   protected isTracingChannelData: boolean = false;
@@ -79,17 +81,21 @@ export class SQLJob {
    *
    * @param options - The options for configuring the SQL job.
    * @param transport - Optional custom transport implementation (defaults to WebSocketTransport)
+   * @param logger - Optional logger. Defaults to no-op (silent). Pass `consoleLogger` or your own
+   *   pino/winston instance to capture output.
    */
-  constructor(public options: JDBCOptions = {}, transport?: Transport) {
-    this.transport = transport ?? new WebSocketTransport();
+  constructor(public options: JDBCOptions = {}, transport?: Transport, logger?: Logger) {
+    this.logger = logger ?? dummyLogger;
+    this.transport = transport ?? new WebSocketTransport(this.logger);
   }
 
   /**
    * Creates a transport instance based on the provided configuration
    * @param config - Mapepire configuration
+   * @param logger - Logger to pass through to the transport
    * @returns Transport instance
    */
-  private static createTransport(config: MapepireConfig): Transport {
+  private static createTransport(config: MapepireConfig, logger: Logger): Transport {
     // Auto-detect local-single when running on IBM i with no credentials
     const isLocalSingleAuto =
       !config.transport &&
@@ -100,13 +106,13 @@ export class SQLJob {
 
     switch (transportType) {
       case 'websocket':
-        return new WebSocketTransport();
+        return new WebSocketTransport(logger);
 
       case 'ssh-single':
-        return new SSHSingleTransport();
+        return new SSHSingleTransport(logger);
 
       case 'local-single':
-        return new LocalSingleTransport();
+        return new LocalSingleTransport(logger);
 
       default:
         throw new Error(`Unknown transport type: ${transportType}`);
@@ -117,11 +123,13 @@ export class SQLJob {
    * Creates a new SQLJob instance with unified configuration
    * @param config - Mapepire configuration
    * @param options - JDBC options
+   * @param logger - Optional logger. Defaults to no-op (silent).
    * @returns SQLJob instance
    */
-  static withConfig(config: MapepireConfig, options: JDBCOptions = {}): SQLJob {
-    const transport = SQLJob.createTransport(config);
-    const job = new SQLJob(options, transport);
+  static withConfig(config: MapepireConfig, options: JDBCOptions = {}, logger?: Logger): SQLJob {
+    const effectiveLogger = logger ?? dummyLogger;
+    const transport = SQLJob.createTransport(config, effectiveLogger);
+    const job = new SQLJob(options, transport, effectiveLogger);
     job._mapepireConfig = config;
     return job;
   }
@@ -133,6 +141,7 @@ export class SQLJob {
    *
    * @param creds  - ssh2 ConnectConfig (host, username, password / privateKey, port, …)
    * @param options - Optional JDBC options
+   * @param logger - Optional logger. Defaults to no-op (silent).
    * @returns SQLJob instance ready for job.connect()
    *
    * @example
@@ -143,7 +152,7 @@ export class SQLJob {
    * await job.close();  // SSH client torn down automatically
    * ```
    */
-  static async ssh2(creds: SSH2ConnectConfig, options: JDBCOptions = {}): Promise<SQLJob> {
+  static async ssh2(creds: SSH2ConnectConfig, options: JDBCOptions = {}, logger?: Logger): Promise<SQLJob> {
     const client = await connectSSH2(creds);
     return SQLJob.withConfig({
       transport: 'ssh-single',
@@ -151,7 +160,7 @@ export class SQLJob {
         ...createSSH2Connection(client),
         teardown: () => client.end(),
       },
-    }, options);
+    }, options, logger);
   }
 
   /**
@@ -161,6 +170,7 @@ export class SQLJob {
    *
    * @param creds  - node-ssh Config (host, username, password / privateKey, port, …)
    * @param options - Optional JDBC options
+   * @param logger - Optional logger. Defaults to no-op (silent).
    * @returns SQLJob instance ready for job.connect()
    *
    * @example
@@ -171,7 +181,7 @@ export class SQLJob {
    * await job.close();  // SSH instance disposed automatically
    * ```
    */
-  static async nodeSSH(creds: NodeSSHConfig, options: JDBCOptions = {}): Promise<SQLJob> {
+  static async nodeSSH(creds: NodeSSHConfig, options: JDBCOptions = {}, logger?: Logger): Promise<SQLJob> {
     const ssh = await connectNodeSSH(creds);
     return SQLJob.withConfig({
       transport: 'ssh-single',
@@ -179,7 +189,7 @@ export class SQLJob {
         ...createNodeSSHConnection(ssh),
         teardown: () => ssh.dispose(),
       },
-    }, options);
+    }, options, logger);
   }
 
   /**
@@ -321,7 +331,7 @@ export class SQLJob {
     // Set up error handler for WebSocket transport (backward compatibility)
     if (this.transport instanceof WebSocketTransport) {
       this.transport.onError((err) => {
-        console.error(err);
+        this.logger.error('[mapepire] transport error', err);
         this.dispose();
       });
     }

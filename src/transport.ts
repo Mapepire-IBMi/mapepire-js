@@ -5,6 +5,7 @@
 
 import { EventEmitter } from "stream";
 import { DaemonServer, ServerRequest, ServerResponse } from "./types";
+import { Logger, dummyLogger } from "./logger";
 
 /**
  * Transport connection options
@@ -81,7 +82,13 @@ export interface Transport {
 export abstract class BaseTransport implements Transport {
   protected responseEmitter: EventEmitter = new EventEmitter();
   protected connected: boolean = false;
+  /** @deprecated Use the logger at debug level instead. Kept for backward compat with enableTrace()/disableTrace(). */
   protected isTracing: boolean = false;
+  protected logger: Logger;
+
+  constructor(logger?: Logger) {
+    this.logger = logger ?? dummyLogger;
+  }
 
   abstract connect(server: DaemonServer, options?: TransportOptions): Promise<void>;
   abstract send(request: ServerRequest): Promise<void>;
@@ -104,12 +111,13 @@ export abstract class BaseTransport implements Transport {
   }
 
   /**
-   * Logs trace data if tracing is enabled
+   * Logs trace data.
+   * When enableTrace() has been called, also routes through logger.debug.
    * @param data - Data to log
    */
   protected trace(data: any): void {
     if (this.isTracing) {
-      console.log(data);
+      this.logger.debug('[mapepire trace]', data);
     }
   }
 

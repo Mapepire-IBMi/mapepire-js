@@ -1,4 +1,5 @@
 import { SQLJob } from "./sqlJob";
+import { Logger, dummyLogger } from "./logger";
 import { BindingValue, BlobRef, DaemonServer, JDBCOptions, QueryOptions } from "./types";
 import {JobStatus} from "./states";
 
@@ -26,7 +27,13 @@ export interface PoolOptions {
    * The number of connections to create when the pool is initialized.
    * This determines the starting size of the connection pool.
    */
-  startingSize: number
+  startingSize: number,
+
+  /**
+   * Optional logger. Defaults to no-op (silent). Pass `consoleLogger` or your own
+   * pino/winston instance to capture output from all jobs created by this pool.
+   */
+  logger?: Logger,
 }
 
 interface PoolAddOptions {
@@ -124,7 +131,7 @@ export class Pool {
       this.cleanup();
     }
 
-    const newSqlJob = options.existingJob || new SQLJob(this.options.opts);
+    const newSqlJob = options.existingJob || new SQLJob(this.options.opts, undefined, this.options.logger ?? dummyLogger);
 
     if (options.poolIgnore !== true) {
       this.jobs.push(newSqlJob);

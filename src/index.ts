@@ -1,4 +1,5 @@
 export { SQLJob, UrlToDaemon } from "./sqlJob";
+export { Logger, dummyLogger, consoleLogger } from "./logger";
 export { VERSION, SERVER_VERSION_TAG, SERVER_FILE_PREFIX, SERVER_VERSION_FILE, JAR_SHA256 } from "./serverVersion";
 export { Pool } from "./pool";
 export { getCertificate, getRootCertificate } from "./tls";

@@ -6,6 +6,7 @@
 import path from "path";
 import { BaseTransport, TransportOptions } from "../transport";
 import { DaemonServer, ServerRequest, ServerResponse, SSHSingleConfig, ExecChannel, ExecFunction } from "../types";
+import { Logger } from "../logger";
 import { LineBuffer } from "./lineBuffer";
 import {
   DEFAULT_JAVA_PATH,
@@ -35,7 +36,10 @@ enum ConnectionState {
 /**
  * SSH Single transport options
  */
-export interface SSHSingleTransportOptions extends TransportOptions, Partial<SSHSingleConfig> { }
+export interface SSHSingleTransportOptions extends TransportOptions, Partial<SSHSingleConfig> {
+  /** Logger instance. Defaults to no-op (silent). */
+  logger?: Logger;
+}
 
 /**
  * SSH Single Transport implementation
@@ -51,64 +55,8 @@ export class SSHSingleTransport extends BaseTransport {
   private pendingHandshake: { resolve: () => void; reject: (err: Error) => void } | undefined;
   private teardown: (() => void) | undefined;
 
-  /**
-   * Check if debug logging is enabled
-   */
-  private debugEnabled(): boolean {
-    return process.env.MAPEPIRE_SSH_DEBUG === '1';
-  }
-
-  /**
-   * Sanitize sensitive data from debug output
-   */
-  private sanitizeForDebug(data: unknown): unknown {
-    if (data === null || data === undefined) {
-      return data;
-    }
-
-    if (typeof data === 'string') {
-      // Redact potential passwords, tokens, and keys in strings
-      return data.replace(/(password|token|key|secret|credential)[=:]\s*[^\s,}]+/gi, '$1=***');
-    }
-
-    if (Array.isArray(data)) {
-      return data.map(item => this.sanitizeForDebug(item));
-    }
-
-    if (typeof data === 'object') {
-      const sanitized: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(data)) {
-        const lowerKey = key.toLowerCase();
-        // Redact sensitive fields
-        if (lowerKey.includes('password') || lowerKey.includes('token') ||
-          lowerKey.includes('secret') || lowerKey.includes('credential') ||
-          lowerKey.includes('key')) {
-          sanitized[key] = '***';
-        } else {
-          sanitized[key] = this.sanitizeForDebug(value);
-        }
-      }
-      return sanitized;
-    }
-
-    return data;
-  }
-
-  /**
-   * Log debug message if debug is enabled
-   */
-  private debugLog(message: string, meta?: unknown): void {
-    if (!this.debugEnabled()) {
-      return;
-    }
-
-    const prefix = '[ssh-single transport]';
-    if (typeof meta === 'undefined') {
-      console.log(`${prefix} ${message}`);
-    } else {
-      const sanitized = this.sanitizeForDebug(meta);
-      console.log(`${prefix} ${message}`, sanitized);
-    }
+  constructor(logger?: Logger) {
+    super(logger);
   }
 
   /**
@@ -152,7 +100,7 @@ export class SSHSingleTransport extends BaseTransport {
   private setState(newState: ConnectionState): void {
     const oldState = this.state;
     this.state = newState;
-    this.debugLog(`state transition: ${oldState} -> ${newState}`);
+    this.logger.debug(`[ssh-single] state transition: ${oldState} -> ${newState}`);
   }
 
   /**
@@ -178,7 +126,7 @@ export class SSHSingleTransport extends BaseTransport {
    * Handle a complete protocol line
    */
   private handleProtocolLine(line: string): void {
-    this.debugLog('received line', { line });
+    this.logger.debug('[ssh-single] received line', { line });
 
     try {
       const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
@@ -191,7 +139,7 @@ export class SSHSingleTransport extends BaseTransport {
 
       // If we're handshaking and receive a valid response, consider handshake complete
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
-        this.debugLog('handshake complete');
+        this.logger.debug('[ssh-single] handshake complete');
         this.setState(ConnectionState.READY);
         this.connected = true;
         this.pendingHandshake.resolve();
@@ -205,7 +153,7 @@ export class SSHSingleTransport extends BaseTransport {
 
       this.emitResponse(response);
     } catch (e: any) {
-      this.debugLog('protocol parse error', { line, error: e.message });
+      this.logger.debug('[ssh-single] protocol parse error', { line, error: e.message });
 
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.pendingHandshake.reject(new Error(`Protocol initialization failed: invalid JSON response: ${e.message}`));
@@ -220,14 +168,14 @@ export class SSHSingleTransport extends BaseTransport {
   private handleStderr(data: Buffer): void {
     const text = data.toString();
     this.stderrBuffer += text;
-    this.debugLog('stderr', { text });
+    this.logger.debug('[ssh-single] stderr', { text });
   }
 
   /**
    * Handle process exit
    */
   private handleExit(code: number | null, signal?: string): void {
-    this.debugLog('remote process exited', { code, signal, stderr: this.stderrBuffer });
+    this.logger.debug('[ssh-single] remote process exited', { code, signal, stderr: this.stderrBuffer });
 
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
@@ -267,7 +215,7 @@ export class SSHSingleTransport extends BaseTransport {
         type: 'version'
       };
 
-      this.debugLog('sending handshake request', handshakeRequest);
+      this.logger.debug('[ssh-single] sending handshake request', handshakeRequest);
 
       try {
         const requestJson = JSON.stringify(handshakeRequest) + '\n';
@@ -345,7 +293,7 @@ export class SSHSingleTransport extends BaseTransport {
       if (options.serverPath) {
         const fileExists = await this.checkRemoteFileExists(options.exec, options.serverPath);
         if (!fileExists) {
-          console.warn(`[ssh-single transport] serverPath "${options.serverPath}" not found on remote system, falling back to private install.`);
+          this.logger.warn(`[ssh-single] serverPath "${options.serverPath}" not found on remote system, falling back to private install.`);
           resolvedServerPath = await performPrivateInstall();
         } else {
           resolvedServerPath = options.serverPath;
@@ -383,7 +331,7 @@ export class SSHSingleTransport extends BaseTransport {
 
     this.remoteCommand = this.buildRemoteCommand(config);
 
-    this.debugLog('launching remote server', {
+    this.logger.debug('[ssh-single] launching remote server', {
       command: this.remoteCommand,
       config: {
         serverPath: config.serverPath,
@@ -398,7 +346,7 @@ export class SSHSingleTransport extends BaseTransport {
       // Execute the remote command
       this.channel = await config.exec(this.remoteCommand);
 
-      this.debugLog('exec channel established');
+      this.logger.debug('[ssh-single] exec channel established');
 
       // Set up stream handlers
       this.channel.stdout.on('data', (data: Buffer) => this.handleStdout(data));
@@ -408,10 +356,10 @@ export class SSHSingleTransport extends BaseTransport {
       // Perform handshake
       await this.performHandshake(config.startupTimeout!);
 
-      this.debugLog('connection established successfully');
+      this.logger.debug('[ssh-single] connection established successfully');
     } catch (err: any) {
       this.setState(ConnectionState.ERROR);
-      this.debugLog('connection failed', { error: err.message });
+      this.logger.debug('[ssh-single] connection failed', { error: err.message });
       throw new Error(`SSH single transport connection failed: ${err.message}`);
     }
   }
@@ -443,7 +391,7 @@ export class SSHSingleTransport extends BaseTransport {
     }
 
     this.setState(ConnectionState.CLOSING);
-    this.debugLog('closing connection');
+    this.logger.debug('[ssh-single] closing connection');
 
     if (this.startupTimer) {
       clearTimeout(this.startupTimer);
@@ -457,14 +405,14 @@ export class SSHSingleTransport extends BaseTransport {
       try {
         this.channel.close();
       } catch (e: any) {
-        this.debugLog('error closing channel', { error: e.message });
+        this.logger.debug('[ssh-single] error closing channel', { error: e.message });
       }
       this.channel = undefined;
     }
 
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
-    this.debugLog('connection closed');
+    this.logger.debug('[ssh-single] connection closed');
 
     // If this transport owns the SSH client (created via SQLJob.ssh2/nodeSSH),
     // tear it down now that the channel is fully closed.
