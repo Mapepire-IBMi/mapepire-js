@@ -5,6 +5,7 @@
 import WebSocket from "ws";
 import { BaseTransport, TransportOptions } from "../transport";
 import { DaemonServer, ServerRequest, ServerResponse } from "../types";
+import { Logger } from "../logger";
 
 export const DEFAULT_PORT = 8076;
 
@@ -14,6 +15,8 @@ export const DEFAULT_PORT = 8076;
 export interface WebSocketTransportOptions extends TransportOptions {
   /** WebSocket connection timeout in milliseconds (default: 5000) */
   timeout?: number;
+  /** Logger instance. Defaults to no-op (silent). */
+  logger?: Logger;
 }
 
 /**
@@ -22,6 +25,10 @@ export interface WebSocketTransportOptions extends TransportOptions {
  */
 export class WebSocketTransport extends BaseTransport {
   private socket: WebSocket | undefined;
+
+  constructor(logger?: Logger) {
+    super(logger);
+  }
 
   /**
    * Establishes a WebSocket connection to the server
@@ -45,7 +52,7 @@ export class WebSocketTransport extends BaseTransport {
       );
 
       ws.on("error", (err: Error) => {
-        console.error(err);
+        this.logger.error('[mapepire ws] connection error', err);
         reject(err);
       });
 
@@ -63,7 +70,7 @@ export class WebSocketTransport extends BaseTransport {
           }) as any);
           this.emitResponse(response);
         } catch (e: any) {
-          console.error(`Error parsing response: ` + e);
+          this.logger.warn('[mapepire ws] failed to parse server message', e);
         }
       });
 
