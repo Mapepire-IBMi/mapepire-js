@@ -42,14 +42,14 @@
     "@octokit/rest": "^22.0.1",
     "@types/ssh2": "^1.15.5",
     "@types/ws": "^8.18.1",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.9",
     "node-ssh": "^13.2.1",
     "ssh2": "^1.17.0",
     "ts-loader": "^9.4.4",
-    "typescript": "^5.0.0",
-    "vitest": "^4.1.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
     "webpack": "^5.24.3",
-    "webpack-cli": "^4.5.0"
+    "webpack-cli": "^7.2.3"
   },
   "dependencies": {
     "ws": "^8.21.0"
