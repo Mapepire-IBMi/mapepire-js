@@ -110,4 +110,4 @@ Omitting this causes TLS failures against self-signed certs.
 - Branch names use prefixes: `fix/`, `feat/`, `docs/`, `test/`, `chore/`.
 - JSDoc is required on all public exports (`src/index.ts` symbols). Use the existing style in `src/sqlJob.ts` as the reference.
 - No linter is enforced via CI — follow the existing formatting in `src/` (2-space indentation, backtick template literals for SQL strings).
-- `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com) with `Added`, `Fixed`, `Changed`, `Security` sections — update it before every PR.
+- `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com) with `Added`, `Fixed`, `Changed`, `Security` sections — it is updated by the maintainer in the release PR.
