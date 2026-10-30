@@ -8,15 +8,17 @@ Releases are triggered by creating a GitHub Release. The `release.yaml` workflow
 2. Bump `"version"` in `package.json` to `X.Y.Z`.
 3. In `CHANGELOG.md`, add a new `## [X.Y.Z] - YYYY-MM-DD` section at the top summarising the changes in this release (`Added`, `Fixed`, `Changed`, `Security`).
 4. Run `npm run webpack` locally and confirm the build is clean.
-5. Commit and push to `main`:
+5. Create a release branch, commit, and open a PR into `main`:
 
    ```bash
+   git checkout -b chore/release-vX.Y.Z
    git commit -am "chore: release vX.Y.Z"
-   git push origin main
+   git push origin chore/release-vX.Y.Z
+   # Open a PR and merge it once approved
    ```
 
 6. On GitHub, go to **Releases → Draft a new release**:
-   - Tag: `vX.Y.Z` (create it on `main`)
+   - Tag: `vX.Y.Z` (create it on `main` after the PR is merged)
    - Title: `vX.Y.Z`
    - Body: use the structure below — the auto-generated "What's Changed" PR list comes first, then append a hand-written `📝 Summary` section from the CHANGELOG entries:
 

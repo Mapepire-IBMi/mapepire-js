@@ -21,7 +21,8 @@ body:
         import { SQLJob } from "@ibm/mapepire-js";
 
         const job = new SQLJob();
-        await job.connect({ host: "myibmi.example.com", user: "USER", password: "PASSWORD" });
+        // Use environment variables — never hardcode credentials
+        await job.connect({ host: process.env.DB2_HOST, user: process.env.DB2_USER, password: process.env.DB2_PASS });
         const result = await job.execute("select * from sample.employee");
         console.log(result);
         ```
