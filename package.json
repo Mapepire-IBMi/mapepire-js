@@ -6,7 +6,7 @@
   "homepage": "https://mapepire-ibmi.github.io/guides/usage/nodejs/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Mapepire-IBMi/mapepire-js"
+    "url": "git+https://github.com/Mapepire-IBMi/mapepire-js.git"
   },
   "bugs": {
     "url": "https://github.com/Mapepire-IBMi/mapepire-js/issues"
@@ -24,9 +24,6 @@
     "IBM",
     "IBM i"
   ],
-  "bin": {
-    "so": "./dist/index.js"
-  },
   "publisher": "IBM",
   "main": "./dist/index.js",
   "types": "./dist/src/index.d.ts",
