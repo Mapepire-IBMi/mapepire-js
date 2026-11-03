@@ -61,18 +61,34 @@ test("Get invalid CL command documentation", async () => {
   await job.close();
 });
 
-test("Get valid CL command definition XML", async () => {
+/** Older servers lack `getcmdxml`. TODO: remove this skip workaround once the server is updated. */
+const isUnsupportedByServer = (e: unknown) =>
+  String((e as Error)?.message).includes("Unknown request type");
+
+test("Get valid CL command definition XML", async (ctx) => {
   const job = new SQLJob();
   await job.connect(creds);
-  const res = await job.getCmdXml("/QSYS.LIB/CRTLIB.CMD");
-  await job.close();
-  expect(res.success).toBe(true);
-  expect(res.xml.includes("QcdCLCmd")).toBeTruthy();
+  try {
+    const res = await job.getCmdXml("/QSYS.LIB/CRTLIB.CMD");
+    expect(res.success).toBe(true);
+    expect(res.xml.includes("QcdCLCmd")).toBeTruthy();
+  } catch (e) {
+    if (isUnsupportedByServer(e)) ctx.skip("Server does not support getcmdxml");
+    throw e;
+  } finally {
+    await job.close();
+  }
 });
 
-test("Get invalid CL command definition XML", async () => {
+test("Get invalid CL command definition XML", async (ctx) => {
   const job = new SQLJob();
   await job.connect(creds);
-  await expect(job.getCmdXml("/QSYS.LIB/INVALID.CMD")).rejects.toThrow("CPF9801 Object INVALID in library QSYS not found.");
-  await job.close();
+  try {
+    await expect(job.getCmdXml("/QSYS.LIB/INVALID.CMD")).rejects.toThrow("CPF9801 Object INVALID in library QSYS not found.");
+  } catch (e) {
+    if (isUnsupportedByServer(e)) ctx.skip("Server does not support getcmdxml");
+    throw e;
+  } finally {
+    await job.close();
+  }
 });
