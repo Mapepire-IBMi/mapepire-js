@@ -2,6 +2,7 @@ import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 import { BaseTransport, TransportOptions } from '../transport';
 import { DaemonServer, ServerRequest, ServerResponse, LocalSingleConfig } from '../types';
 import { LineBuffer } from './lineBuffer';
+import { Logger } from '../logger';
 
 enum ConnectionState {
   IDLE = 'idle',
@@ -18,7 +19,10 @@ import {
   ensureSingleFlag,
 } from './utils';
 
-export interface LocalSingleTransportOptions extends TransportOptions, Partial<LocalSingleConfig> { }
+export interface LocalSingleTransportOptions extends TransportOptions, Partial<LocalSingleConfig> {
+  /** Logger instance. Defaults to no-op (silent). */
+  logger?: Logger;
+}
 
 /**
  * Spawns mapepire-server with --single flag as a child process and communicates
@@ -32,18 +36,13 @@ export class LocalSingleTransport extends BaseTransport {
   private startupTimer: NodeJS.Timeout | undefined;
   private pendingHandshake: { resolve: () => void; reject: (err: Error) => void } | undefined;
 
-  private debugLog(message: string, meta?: unknown): void {
-    if (process.env.MAPEPIRE_LOCAL_DEBUG !== '1') return;
-    if (typeof meta === 'undefined') {
-      console.log(`[local-single] ${message}`);
-    } else {
-      console.log(`[local-single] ${message}`, meta);
-    }
+  constructor(logger?: Logger) {
+    super(logger);
   }
 
   private setState(newState: ConnectionState): void {
     this.state = newState;
-    this.debugLog(`state -> ${newState}`);
+    this.logger.debug(`[local-single] state -> ${newState}`);
   }
 
   private buildSpawnArgs(config: LocalSingleConfig): {
@@ -80,7 +79,7 @@ export class LocalSingleTransport extends BaseTransport {
   }
 
   private handleProtocolLine(line: string): void {
-    this.debugLog('recv', line);
+    this.logger.debug('[local-single] recv', line);
 
     try {
       const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
@@ -104,7 +103,7 @@ export class LocalSingleTransport extends BaseTransport {
 
       this.emitResponse(response);
     } catch (e: any) {
-      this.debugLog('parse error', { line, error: e.message });
+      this.logger.debug('[local-single] parse error', { line, error: e.message });
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.pendingHandshake.reject(
           new Error(`Protocol initialization failed: ${e.message}`)
@@ -119,7 +118,7 @@ export class LocalSingleTransport extends BaseTransport {
   }
 
   private handleExit(code: number | null, signal: NodeJS.Signals | null): void {
-    this.debugLog('exit', { code, signal });
+    this.logger.debug('[local-single] exit', { code, signal });
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
 
@@ -135,7 +134,7 @@ export class LocalSingleTransport extends BaseTransport {
   }
 
   private handleSpawnError(err: Error): void {
-    this.debugLog('spawn error', err.message);
+    this.logger.debug('[local-single] spawn error', err.message);
     this.connected = false;
     this.setState(ConnectionState.CLOSED);
 
@@ -159,7 +158,7 @@ export class LocalSingleTransport extends BaseTransport {
       }, timeout);
 
       const handshakeRequest: ServerRequest = { id: 'handshake', type: 'getversion' };
-      this.debugLog('handshake ->', handshakeRequest);
+      this.logger.debug('[local-single] handshake ->', handshakeRequest);
 
       try {
         this.childProcess!.stdin.write(JSON.stringify(handshakeRequest) + '\n', 'utf8');
@@ -190,7 +189,7 @@ export class LocalSingleTransport extends BaseTransport {
     };
 
     const { javaPath, args, env } = this.buildSpawnArgs(config);
-    this.debugLog('spawn', { javaPath, args });
+    this.logger.debug('[local-single] spawn', { javaPath, args });
 
     try {
       this.childProcess = spawn(javaPath, args, {

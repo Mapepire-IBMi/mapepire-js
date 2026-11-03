@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { SSHSingleTransport } from '../src/transports/sshSingleTransport';
 import { ExecChannel, DaemonServer, ExecFunction, UploadFunction } from '../src/types';
-import { EventEmitter } from 'events';
 import { Readable, Writable } from 'stream';
 
 /**
@@ -700,7 +699,8 @@ describe('SSHSingleTransport – private install', () => {
   });
 
   it('falls back to private install and logs warning when privateInstall is true and serverPath is not found', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.fn();
+    const logger = { trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() };
 
     const serverChannel = new MockExecChannel();
     const upload = vi.fn().mockResolvedValue(undefined) as unknown as UploadFunction;
@@ -716,7 +716,7 @@ describe('SSHSingleTransport – private install', () => {
       return serverChannel;
     }) as unknown as ExecFunction;
 
-    const transport = new SSHSingleTransport();
+    const transport = new SSHSingleTransport(logger);
     const server: DaemonServer = { host: 'ibmi.example.com', user: 'USER', password: 'PASS' };
 
     simulateHandshake(serverChannel);
@@ -727,7 +727,7 @@ describe('SSHSingleTransport – private install', () => {
       serverPath: '/non/existent/path/mapepire-server.jar',
     });
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('serverPath "/non/existent/path/mapepire-server.jar" not found on remote system, falling back to private install.')
     );
 
@@ -735,7 +735,6 @@ describe('SSHSingleTransport – private install', () => {
     expect(remoteCmd).toContain(MOCKED_REMOTE_JAR);
     expect(transport.isConnected()).toBe(true);
 
-    consoleWarnSpy.mockRestore();
     await transport.close();
   });
 
