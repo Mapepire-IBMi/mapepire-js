@@ -14,7 +14,9 @@
  *   4. Parse semver from each filename
  *   5a. None found      → NotInstalled → upload
  *   5b. ALL < bundled   → NeedsUpdate  → upload
- *   5c. ANY >= bundled  → Installed    → verify SHA-256 → return path
+ *   5c. ANY >= bundled  → Installed    → return path. A JAR at exactly the bundled
+ *                         version is SHA-256 verified first; if it fails it is
+ *                         ignored (not deleted) and the bundled JAR is uploaded.
  *   6. Upload: mkdir -p, sftp/scp, chmod +x
  *   7. Verify: openssl dgst -sha256 <remote>, compare to jarSha256
  */
@@ -168,6 +170,13 @@ async function uploadJar(
   await runCommand(exec, `chmod +x "${remotePath}"`);
 }
 
+/** Compute the remote file's SHA-256 (lowercase hex) via openssl. */
+async function remoteSha256(exec: ExecFunction, remotePath: string): Promise<string> {
+  const output = await runCommand(exec, `openssl dgst -sha256 "${remotePath}"`);
+  // openssl output: "SHA256(filename)= <hex>"  — take the last token
+  return output.split(' ').pop()?.toLowerCase() ?? '';
+}
+
 /**
  * Step 7: Verify the remote JAR's SHA-256 hash via openssl.
  */
@@ -176,9 +185,7 @@ async function verifySha256(
   remotePath: string,
   expectedSha256: string
 ): Promise<void> {
-  const output = await runCommand(exec, `openssl dgst -sha256 "${remotePath}"`);
-  // openssl output: "SHA256(filename)= <hex>"  — take the last token
-  const actual = output.split(' ').pop()?.toLowerCase() ?? '';
+  const actual = await remoteSha256(exec, remotePath);
   if (actual !== expectedSha256.toLowerCase()) {
     throw new Error(
       `Remote JAR SHA-256 mismatch — possible tampering.\n` +
@@ -217,28 +224,43 @@ export async function ensureServerInstalled(options: ServerInstallerOptions): Pr
   // 3–4. Check what's already on the remote
   const found = await checkRemoteVersions(exec, homeDir, installDir);
 
-  const needsUpload =
-    found.length === 0 ||
-    found.every(({ semver }) => semVerLessThan(semver, bundledVersion));
+  // Usable = version >= bundled. A JAR at exactly the bundled version must also
+  // match JAR_SHA256 (skipped when empty); one that doesn't or can't be hashed
+  // is ignored (never deleted: it may belong to .vscode) and we upload our own.
+  // Newer versions can't be vouched for by JAR_SHA256, so they are trusted as-is.
+  const usable: typeof found = [];
+  for (const candidate of found) {
+    if (semVerLessThan(candidate.semver, bundledVersion)) continue;
+    const sameVersion = !semVerLessThan(bundledVersion, candidate.semver);
+    if (sameVersion && jarSha256) {
+      const actual = await remoteSha256(exec, candidate.fullPath).catch(() => '');
+      if (actual !== jarSha256.toLowerCase()) continue;
+    }
+    usable.push(candidate);
+  }
 
-  if (needsUpload) {
+  if (usable.length === 0) {
     // 6. Upload the bundled JAR.
     await ensureRemoteDir(exec, installDir);
     await uploadJar(exec, upload, localJarPath, remoteJarPath);
 
     // 7. Verify the JAR we just uploaded against the known bundled hash.
     //    Skipped only when jarSha256 is empty (e.g. pre-build dev run).
-    //    We do NOT verify pre-existing remote JARs — JAR_SHA256 is specific
-    //    to the bundled version and cannot vouch for any other version's bytes.
+    //    On mismatch, delete the bad JAR so it can't linger on the remote.
     if (jarSha256) {
-      await verifySha256(exec, remoteJarPath, jarSha256);
+      try {
+        await verifySha256(exec, remoteJarPath, jarSha256);
+      } catch (err) {
+        await runCommand(exec, `rm -f "${remoteJarPath}"`).catch(() => { /* best effort; surface the original error */ });
+        throw err;
+      }
     }
 
     return remoteJarPath;
   }
 
-  // Installed: at least one found version >= bundled.
-  // Return the highest found version's actual path.
-  const best = found.reduce((a, b) => semVerLessThan(a.semver, b.semver) ? b : a);
+  // Installed: at least one usable version >= bundled.
+  // Return the highest usable version's actual path.
+  const best = usable.reduce((a, b) => semVerLessThan(a.semver, b.semver) ? b : a);
   return best.fullPath;
 }

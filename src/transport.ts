@@ -118,7 +118,17 @@ export abstract class BaseTransport implements Transport {
    * @param response - The server response to emit
    */
   protected emitResponse(response: ServerResponse): void {
-    this.responseEmitter.emit(response.id, response);
+    if (
+      typeof response?.id === "string" &&
+      response.id !== "error" &&
+      response.id !== "newListener" &&
+      response.id !== "removeListener" &&
+      this.responseEmitter.listenerCount(response.id) > 0
+    ) {
+      this.responseEmitter.emit(response.id, response);
+    } else {
+      this.trace(`Received response with unhandled or invalid ID: ${response?.id}`);
+    }
   }
 
   /**

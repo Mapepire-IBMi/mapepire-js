@@ -145,6 +145,44 @@ export class LocalSingleTransport extends BaseTransport {
     }
   }
 
+  /**
+   * Handles asynchronous stdin stream errors (e.g. EPIPE, ERR_STREAM_DESTROYED).
+   * Without a listener these would surface as uncaught exceptions and crash the host process.
+   */
+  private handleStdinError(err: Error): void {
+    this.debugLog('stdin error', err.message);
+    this.connected = false;
+    this.setState(ConnectionState.CLOSED);
+
+    if (this.startupTimer) {
+      clearTimeout(this.startupTimer);
+      this.startupTimer = undefined;
+    }
+
+    if (this.pendingHandshake) {
+      this.pendingHandshake.reject(new Error(`Failed to write to server process: ${err.message}`));
+      this.pendingHandshake = undefined;
+    }
+
+    this.notifyConnectionFailure(1, `Failed to write to server process: ${err.message}`);
+  }
+
+  /** Writes a newline-terminated payload to the child's stdin, rejecting if the write fails. */
+  private writeLine(payload: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const stdin = this.childProcess?.stdin;
+      if (!stdin || !stdin.writable || stdin.destroyed) {
+        reject(new Error('Server process stdin is not writable'));
+        return;
+      }
+      try {
+        stdin.write(payload + '\n', 'utf8', (err?: Error | null) => (err ? reject(err) : resolve()));
+      } catch (e: any) {
+        reject(e);
+      }
+    });
+  }
+
   private async performHandshake(timeout: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.setState(ConnectionState.HANDSHAKING);
@@ -161,14 +199,12 @@ export class LocalSingleTransport extends BaseTransport {
       const handshakeRequest: ServerRequest = { id: 'handshake', type: 'getversion' };
       this.debugLog('handshake ->', handshakeRequest);
 
-      try {
-        this.childProcess!.stdin.write(JSON.stringify(handshakeRequest) + '\n', 'utf8');
-      } catch (e: any) {
+      this.writeLine(JSON.stringify(handshakeRequest)).catch((e: Error) => {
         if (this.pendingHandshake) {
           this.pendingHandshake.reject(new Error(`Failed to send handshake: ${e.message}`));
           this.pendingHandshake = undefined;
         }
-      }
+      });
     });
   }
 
@@ -199,6 +235,7 @@ export class LocalSingleTransport extends BaseTransport {
         cwd: config.cwd,
       }) as ChildProcessWithoutNullStreams;
 
+      this.childProcess.stdin.on('error', (err: Error) => this.handleStdinError(err));
       this.childProcess.stdout.on('data', (data: Buffer) => this.handleStdout(data));
       this.childProcess.stderr.on('data', (data: Buffer) => this.handleStderr(data));
       this.childProcess.on('exit', (code: number | null, signal: NodeJS.Signals | null) => this.handleExit(code, signal));
@@ -217,7 +254,7 @@ export class LocalSingleTransport extends BaseTransport {
       throw new Error('Local single transport is not connected');
     }
     this.trace(request);
-    this.childProcess.stdin.write(JSON.stringify(request) + '\n', 'utf8');
+    await this.writeLine(JSON.stringify(request));
   }
 
   /** Closes the local single connection and terminates the child process. */
@@ -239,7 +276,7 @@ export class LocalSingleTransport extends BaseTransport {
           const exitRequest: ServerRequest = { id: 'exit-req', type: 'exit' };
           // Send graceful exit then wait for the process to terminate itself,
           // falling back to SIGTERM after 2 seconds.
-          this.childProcess.stdin.write(JSON.stringify(exitRequest) + '\n', 'utf8');
+          await this.writeLine(JSON.stringify(exitRequest)).catch(() => { /* child may already be gone */ });
           await new Promise<void>(resolve => {
             const timer = setTimeout(() => { this.childProcess?.kill(); resolve(); }, 2000);
             this.childProcess!.once('exit', () => { clearTimeout(timer); resolve(); });

@@ -174,6 +174,10 @@ describe('ensureServerInstalled', () => {
 
     await expect(ensureServerInstalled(baseOptions(exec, upload)))
       .rejects.toThrow(/SHA-256 mismatch/);
+
+    // The tampered JAR must be removed so a later connect doesn't reuse it unverified
+    const calls = (exec as unknown as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0] as string);
+    expect(calls.some(c => c.includes('rm -f') && c.includes(REMOTE_JAR))).toBe(true);
   });
 
   it('Test G: echo $HOME returns empty — error propagated', async () => {
@@ -242,5 +246,49 @@ describe('ensureServerInstalled', () => {
     expect(result).toBe(REMOTE_JAR);
     const calls = (exec as ReturnType<typeof vi.fn>).mock.calls.map((c: any[]) => c[0] as string);
     expect(calls.some(c => c.includes('openssl'))).toBe(false);
+  });
+  it('Test K: same-version JAR on remote fails SHA — ignored (not deleted), bundled JAR uploaded', async () => {
+    const upload = makeUpload();
+    const exec = makeExec([
+      { match: 'echo $HOME',            stdout: HOME_DIR },
+      { match: '/QOpenSys/usr/bin/find', stdout: REMOTE_JAR },
+      { match: 'mkdir -p',              stdout: '' },
+      { match: 'chmod +x',             stdout: '' },
+      // existing file is tampered; after re-upload the hash is correct
+      { match: 'openssl dgst -sha256',  stdout: `SHA256(${REMOTE_JAR})= deadbeef` },
+    ]);
+    // First openssl call (existing file) returns deadbeef; second (after upload) returns the real hash.
+    let n = 0;
+    const wrapped = vi.fn(async (cmd: string) => {
+      if (cmd.includes('openssl dgst -sha256')) {
+        return makeExecChannel(`SHA256(${REMOTE_JAR})= ${n++ === 0 ? 'deadbeef' : BUNDLED_SHA256}`);
+      }
+      return (exec as unknown as (c: string) => Promise<ExecChannel>)(cmd);
+    }) as unknown as ExecFunction;
+
+    const result = await ensureServerInstalled(baseOptions(wrapped, upload));
+
+    expect(result).toBe(REMOTE_JAR);
+    expect(upload).toHaveBeenCalledWith(LOCAL_JAR, REMOTE_JAR);
+    const calls = (wrapped as unknown as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0] as string);
+    expect(calls.some(c => c.includes('rm -f'))).toBe(false);
+  });
+
+  it('Test L: tampered same-version JAR in .vscode, good one in .mapepire — good one returned, no upload', async () => {
+    const upload = makeUpload();
+    const vscodeJar = `${HOME_DIR}/.vscode/mapepire-server-${BUNDLED_VERSION}.jar`;
+    const exec = vi.fn(async (cmd: string) => {
+      if (cmd.includes('echo $HOME')) return makeExecChannel(HOME_DIR);
+      if (cmd.includes('/QOpenSys/usr/bin/find')) return makeExecChannel(`${vscodeJar}\n${REMOTE_JAR}`);
+      if (cmd.includes('openssl dgst -sha256')) {
+        return makeExecChannel(`SHA256(x)= ${cmd.includes(vscodeJar) ? 'deadbeef' : BUNDLED_SHA256}`);
+      }
+      return makeExecChannel('');
+    }) as unknown as ExecFunction;
+
+    const result = await ensureServerInstalled(baseOptions(exec, upload));
+
+    expect(result).toBe(REMOTE_JAR);
+    expect(upload).not.toHaveBeenCalled();
   });
 });
