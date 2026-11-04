@@ -30,6 +30,7 @@
   "scripts": {
     "test": "vitest run --bail 5",
     "prepare": "npx tsx scripts/downloadServer.ts",
+    "bump-server": "npx tsx scripts/downloadServer.ts --bump",
     "webpack:dev": "webpack --mode none --config ./webpack.config.js",
     "webpack": "webpack --mode production --config ./webpack.config.js",
     "deploy": "npm run webpack && npm i && npm publish --access public"

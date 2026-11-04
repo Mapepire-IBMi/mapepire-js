@@ -131,7 +131,15 @@ export class Pool {
     }
 
     if (newSqlJob.getStatus() === "notStarted") {
-      await newSqlJob.connect(this.options.creds);
+      try {
+        await newSqlJob.connect(this.options.creds);
+      } catch (err) {
+        if (options.poolIgnore !== true) {
+          const idx = this.jobs.indexOf(newSqlJob);
+          if (idx !== -1) this.jobs.splice(idx, 1);
+        }
+        throw err;
+      }
     }
 
     return newSqlJob;
@@ -184,7 +192,10 @@ export class Pool {
       // If every job is busy and the pool still has capacity, spin up a new
       // job in the background so it is ready for the next request.
       if (freeist && this.hasSpace() && freeist.getRunningCount() > 2) {
-        this.addJob();
+        this.addJob().catch(err => {
+          console.error('Background job creation failed', err);
+          this.cleanup();
+        });
       }
       return freeist;
     }

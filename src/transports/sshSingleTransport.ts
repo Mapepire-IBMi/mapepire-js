@@ -18,6 +18,9 @@ import {
 import { ensureServerInstalled } from "./serverInstaller";
 import { VERSION, SERVER_VERSION_FILE, JAR_SHA256 } from "../serverVersion";
 
+/** Maximum amount of remote stderr output retained for error reporting */
+const MAX_STDERR_CHARS = 64 * 1024;
+
 /**
  * Connection states for SSH single transport
  */
@@ -123,7 +126,12 @@ export class SSHSingleTransport extends BaseTransport {
     const mergedEnv = { ...REQUIRED_IBM_I_ENV, ...(config.env || {}) };
     const envEntries = Object.entries(mergedEnv)
       .filter(([, value]) => typeof value !== 'undefined')
-      .map(([key, value]) => `${key}=${shellEscape(String(value))}`);
+      .map(([key, value]) => {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+          throw new Error(`Invalid environment variable name: ${JSON.stringify(key)}`);
+        }
+        return `${key}=${shellEscape(String(value))}`;
+      });
 
     const commandParts: string[] = [];
 
@@ -219,7 +227,11 @@ export class SSHSingleTransport extends BaseTransport {
    */
   private handleStderr(data: Buffer): void {
     const text = data.toString();
-    this.stderrBuffer += text;
+    // Cap retained stderr so a noisy/hostile remote process cannot exhaust memory
+    const remaining = MAX_STDERR_CHARS - this.stderrBuffer.length;
+    if (remaining > 0) {
+      this.stderrBuffer += text.length > remaining ? text.slice(0, remaining) + '... [truncated]' : text;
+    }
     this.debugLog('stderr', { text });
   }
 
