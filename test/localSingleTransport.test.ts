@@ -449,6 +449,45 @@ describe('LocalSingleTransport', () => {
     });
   });
 
+  // ── stdin errors ──────────────────────────────────────────────────────────────
+  describe('stdin errors', () => {
+    beforeEach(async () => {
+      simulateHandshake(mockProc);
+      await transport.connect(DUMMY_SERVER, MINIMAL_OPTIONS);
+    });
+
+    it('should not throw when stdin emits an async error (EPIPE) and should fail pending requests', async () => {
+      const failed = new Promise<Error>((resolve) => {
+        transport.getResponseEmitter().once('pending-1_conn_fail', (err: Error) => resolve(err));
+      });
+
+      // Without a stdin 'error' listener, Node rethrows this and would crash the host process.
+      const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
+      expect(() => mockProc.stdin.emit('error', epipe)).not.toThrow();
+
+      const err = await failed;
+      expect(err.message).toContain('write EPIPE');
+      expect(transport.isConnected()).toBe(false);
+    });
+
+    it('should reject send() when the stdin write callback reports an error', async () => {
+      (mockProc.stdin.write as ReturnType<typeof vi.fn>).mockImplementationOnce(
+        (_payload: string, _enc: string, cb: (err?: Error | null) => void) => {
+          cb(new Error('write after end'));
+          return false;
+        }
+      );
+
+      await expect(transport.send({ id: 'w-1', type: 'sql' })).rejects.toThrow('write after end');
+    });
+
+    it('should reject send() when stdin is no longer writable', async () => {
+      mockProc.stdin.destroy();
+
+      await expect(transport.send({ id: 'w-2', type: 'sql' })).rejects.toThrow('not writable');
+    });
+  });
+
   // ── SQLJob integration ────────────────────────────────────────────────────────
   describe('SQLJob.withConfig integration', () => {
     it('should create LocalSingleTransport via SQLJob.withConfig', async () => {

@@ -52,7 +52,11 @@ describe("Transport Abstraction", () => {
     it("should not emit on reserved event names like 'newListener' and 'removeListener'", () => {
       const transport = new TestTransport();
       const newListenerSpy = vi.fn();
+      const removeListenerSpy = vi.fn();
       transport.getResponseEmitter().on("newListener", newListenerSpy);
+      transport.getResponseEmitter().on("removeListener", removeListenerSpy);
+      // Registering the "removeListener" listener above fires "newListener" itself; reset before asserting.
+      newListenerSpy.mockClear();
 
       const responseNewListener: ServerResponse = { id: "newListener", success: true };
       transport.testEmitResponse(responseNewListener);
@@ -60,6 +64,7 @@ describe("Transport Abstraction", () => {
 
       const responseRemoveListener: ServerResponse = { id: "removeListener", success: true };
       transport.testEmitResponse(responseRemoveListener);
+      expect(removeListenerSpy).not.toHaveBeenCalled();
     });
 
     it("should safely ignore responses with invalid or missing id", () => {
@@ -78,6 +83,25 @@ describe("Transport Abstraction", () => {
       transport.testEmitResponse(response);
 
       expect(callback).toHaveBeenCalledWith(response);
+    });
+  });
+
+  describe("SQLJob.send transport failure handling", () => {
+    class RejectingTransport extends BaseTransport {
+      async connect(): Promise<void> {}
+      async send(_request: ServerRequest): Promise<void> {
+        throw new Error("write failed");
+      }
+      async close(): Promise<void> {}
+    }
+
+    it("should reject, and remove its listeners, when transport.send() rejects", async () => {
+      const job = new SQLJob({}, new RejectingTransport());
+
+      // Without the .catch() on transport.send(), this promise would never settle.
+      await expect(job.send({ id: "req-1", type: "sql" })).rejects.toThrow("write failed");
+
+      expect(job.getRunningCount()).toBe(0);
     });
   });
 });
