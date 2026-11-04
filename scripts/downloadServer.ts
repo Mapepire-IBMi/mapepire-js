@@ -12,6 +12,9 @@
  *   Upgrade to a new server version (updates VERSION and JAR_SHA256 in src/serverVersion.ts):
  *     npm run bump-server <version>
  *     npx tsx scripts/downloadServer.ts --bump <version>
+ *
+ *   Re-pin the hash for the current VERSION (updates only JAR_SHA256):
+ *     npx tsx scripts/downloadServer.ts --update-hash
  */
 
 import { Octokit } from '@octokit/rest';

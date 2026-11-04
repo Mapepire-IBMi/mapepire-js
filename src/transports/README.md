@@ -137,8 +137,11 @@ mapepire-js can manage the server JAR automatically:
 3. If nothing usable is found → uploads the bundled JAR to `$HOME/.mapepire/`, verifies its
    SHA-256, then launches
 
-SHA-256 is only verified on a JAR we just uploaded — not on a pre-existing remote JAR, because
-`JAR_SHA256` is specific to the bundled version and cannot vouch for any other version's bytes.
+SHA-256 is verified on a JAR we just uploaded (a mismatch deletes it) and on a pre-existing JAR at
+**exactly** the bundled version. A same-version JAR that fails the check is ignored (never deleted,
+as it may belong to .vscode) and the bundled JAR is uploaded instead. Newer versions are
+trusted as-is, because `JAR_SHA256` is specific to the bundled version and cannot vouch for any
+other version's bytes.
 
 #### Controlling Private Install (`privateInstall` option)
 
@@ -211,23 +214,23 @@ See [`SSHSingleConfig`](../types.ts) and [`LocalSingleConfig`](../types.ts) in `
 
 ## Updating the Bundled Server Version
 
-The bundled JAR version is pinned in [`src/serverVersion.ts`](../serverVersion.ts). To upgrade:
+The bundled JAR version and its SHA-256 are pinned in [`src/serverVersion.ts`](../serverVersion.ts).
+Normal builds (`npm run prepare`) download the pinned version and **fail on a SHA-256 mismatch**;
+they never rewrite the pin. Do not edit `VERSION` or `JAR_SHA256` by hand. To upgrade:
 
-1. **Edit `VERSION`** in `src/serverVersion.ts`:
-   ```typescript
-   export const VERSION = `2.3.7`;  // bump to the new release tag
-   ```
-   Do **not** edit `JAR_SHA256` — the build script overwrites it automatically.
-
-2. **Run the download script** (or just `npm run prepack`):
+1. **Run the bump script** with the new release version:
    ```sh
-   npx tsx scripts/downloadServer.ts
+   npm run bump-server 2.3.7
    ```
-   This fetches `mapepire-server-2.3.7.jar` from GitHub Releases, saves it to `dist/`, computes
-   its SHA-256, and patches `JAR_SHA256` back into `src/serverVersion.ts`.
+   This fetches the `v2.3.7` release from GitHub, downloads the JAR to `dist/`, and updates both
+   `VERSION` and `JAR_SHA256` in `src/serverVersion.ts`.
 
-3. **Commit both changed files** — `src/serverVersion.ts` and `dist/mapepire-server-X.Y.Z.jar` —
-   then publish.
+2. **Review the diff** of `src/serverVersion.ts` and confirm the new hash is expected.
+
+3. **Commit `src/serverVersion.ts`** and publish.
+
+To re-pin the hash for the *current* version (e.g. the release asset was legitimately re-published),
+run `npx tsx scripts/downloadServer.ts --update-hash`.
 
 > The JAR ships inside the npm tarball. Consumers never run the download script; they get the
 > pre-bundled JAR when they `npm install`.
