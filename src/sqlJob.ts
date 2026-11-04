@@ -214,7 +214,11 @@ export class SQLJob {
       });
 
       // Send the request after registering listeners
-      this.transport.send(content);
+      this.transport.send(content).catch((error: Error) => {
+        removeListeners();
+        this.status = this.getRunningCount() === 0 ? JobStatus.READY : JobStatus.BUSY;
+        reject(error);
+      });
     });
   }
 
