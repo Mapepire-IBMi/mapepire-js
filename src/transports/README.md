@@ -38,12 +38,12 @@ const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
 await job.close();  // SSH instance disposed automatically
 ```
 
-**Bring your own client** — useful when reusing an existing SSH connection:
+**Bring your own client** — useful when reusing an existing SSH connection (`transport` is optional and automatically inferred when `sshSingle` is passed):
 ```typescript
 import { SQLJob, connectSSH2, createSSH2Connection } from '@ibm/mapepire-js';
 
 const client = await connectSSH2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
-const job = SQLJob.withConfig({ transport: 'ssh-single', sshSingle: createSSH2Connection(client) });
+const job = SQLJob.withConfig({ sshSingle: createSSH2Connection(client) });
 await job.connect();
 const result = await job.execute('SELECT * FROM QIWS.QCUSTCDT');
 await job.close();
@@ -58,9 +58,8 @@ With this driver, columns and system data with CCSID 65535 can come back invalid
 
 ```typescript
 const job = SQLJob.withConfig({
-  transport: 'ssh-single', 
-  sshSingleTechnique: 'tcp', 
-  sshSingle: createSSH2Connection(client) 
+  sshSingleTechnique: 'tcp',
+  sshSingle: createSSH2Connection(client)
 });
 ```
 

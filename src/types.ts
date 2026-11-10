@@ -163,7 +163,11 @@ export interface LocalSingleConfig {
  * Supports both legacy WebSocket and new single-mode transports
  */
 export interface MapepireConfig {
-  /** Transport type (default: 'websocket') */
+  /**
+   * Transport type (optional).
+   * Automatically inferred when `sshSingle` or `localSingle` is provided,
+   * or when running on IBM i (`os400`) with no credentials. Defaults to `'websocket'`.
+   */
   transport?: MapepireTransport;
 
   /**
@@ -172,13 +176,13 @@ export interface MapepireConfig {
    */
   sshSingleTechnique?: 'tcp' | 'cli';
 
-  /** Legacy daemon server configuration (required for 'websocket' transport) */
+  /** Daemon server configuration (used for 'websocket' transport) */
   daemon?: DaemonServer;
 
-  /** SSH single configuration (required for 'ssh-single' transport) */
+  /** SSH single configuration (infers 'ssh-single' transport when provided) */
   sshSingle?: SSHSingleConfig;
 
-  /** Local single configuration (required for 'local-single' transport).
+  /** Local single configuration (infers 'local-single' transport when provided).
    *  Only valid when running on IBM i (process.platform === 'os400'). */
   localSingle?: LocalSingleConfig;
 }

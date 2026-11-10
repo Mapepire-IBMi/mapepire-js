@@ -21,6 +21,7 @@ import {
   GetTraceDataResult,
   JDBCOptions,
   MapepireConfig,
+  MapepireTransport,
   QueryOptions,
   ServerRequest,
   ServerTraceDest,
@@ -85,18 +86,34 @@ export class SQLJob {
   }
 
   /**
+   * Resolves the transport type based on the provided configuration.
+   * Auto-infers 'ssh-single' when sshSingle config is present,
+   * 'local-single' when localSingle config is present or when running on IBM i with no credentials,
+   * and defaults to 'websocket'.
+   *
+   * @param config - Mapepire configuration
+   * @returns Resolved transport type
+   */
+  private static resolveTransportType(config: MapepireConfig): MapepireTransport {
+    if (config.transport) {
+      return config.transport;
+    }
+    if (config.sshSingle) {
+      return 'ssh-single';
+    }
+    if (config.localSingle || ((process.platform as string) === 'os400' && !config.daemon?.user)) {
+      return 'local-single';
+    }
+    return 'websocket';
+  }
+
+  /**
    * Creates a transport instance based on the provided configuration
    * @param config - Mapepire configuration
    * @returns Transport instance
    */
   private static createTransport(config: MapepireConfig): Transport {
-    // Auto-detect local-single when running on IBM i with no credentials
-    const isLocalSingleAuto =
-      !config.transport &&
-      (process.platform as string) === 'os400' &&
-      !config.daemon?.user;
-
-    const transportType = isLocalSingleAuto ? 'local-single' : (config.transport || 'websocket');
+    const transportType = SQLJob.resolveTransportType(config);
 
     switch (transportType) {
       case 'websocket':
@@ -254,12 +271,7 @@ export class SQLJob {
     let technique: string;
 
     if (config) {
-      const isLocalSingleAuto =
-        !config.transport &&
-        (process.platform as string) === 'os400' &&
-        !config.daemon?.user;
-
-      const transportType = isLocalSingleAuto ? 'local-single' : (config.transport || 'websocket');
+      const transportType = SQLJob.resolveTransportType(config);
 
       switch (transportType) {
         case 'websocket':
