@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { SQLJob, WebSocketTransport, Transport } from "../src/index";
+import { describe, it, expect, vi } from "vitest";
+import { SQLJob, WebSocketTransport, SSHSingleTransport, LocalSingleTransport, Transport } from "../src/index";
 
 describe("Transport Abstraction", () => {
   it("SQLJob should use WebSocketTransport by default", () => {
@@ -31,5 +31,38 @@ describe("Transport Abstraction", () => {
     expect(typeof WebSocketTransport).toBe("function");
   });
 });
+
+describe("SQLJob.withConfig transport auto-inference", () => {
+    it("should infer ssh-single transport when sshSingle config is provided without transport flag", () => {
+      const job = SQLJob.withConfig({
+        sshSingle: {
+          exec: vi.fn(),
+        },
+      });
+      expect(job.getTransport()).toBeInstanceOf(SSHSingleTransport);
+    });
+
+    it("should infer local-single transport when localSingle config is provided without transport flag", () => {
+      const job = SQLJob.withConfig({
+        localSingle: {},
+      });
+      expect(job.getTransport()).toBeInstanceOf(LocalSingleTransport);
+    });
+
+    it("should default to websocket transport when only daemon config is provided", () => {
+      const job = SQLJob.withConfig({
+        daemon: { host: "example.com", user: "USER", password: "PASSWORD" },
+      });
+      expect(job.getTransport()).toBeInstanceOf(WebSocketTransport);
+    });
+
+    it("should respect explicit transport flag even if other configs are present", () => {
+      const job = SQLJob.withConfig({
+        transport: "websocket",
+        sshSingle: { exec: vi.fn() },
+      });
+      expect(job.getTransport()).toBeInstanceOf(WebSocketTransport);
+    });
+  });
 
 
