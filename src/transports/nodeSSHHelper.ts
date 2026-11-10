@@ -28,7 +28,6 @@ import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from 
  * await ssh.connect({ host: 'your-host.com', username: 'user', password: 'pass' });
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: {
  *     exec: createNodeSSHExec(ssh),
  *     serverPath: '/path/to/mapepire-server.jar'
@@ -101,7 +100,6 @@ export function createNodeSSHExec(ssh: NodeSSH): ExecFunction {
  * import { SQLJob, createNodeSSHExec, createNodeSSHUpload } from '@ibm/mapepire-js';
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: {
  *     exec: createNodeSSHExec(ssh),
  *     upload: createNodeSSHUpload(ssh),  // enables private install
@@ -131,7 +129,6 @@ export function createNodeSSHUpload(ssh: NodeSSH): UploadFunction {
  * await ssh.connect({ host: 'your-host.com', username: 'user', password: 'pass' });
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: createNodeSSHConnection(ssh),  // private install enabled automatically
  * });
  *
@@ -163,7 +160,6 @@ export function createNodeSSHConnection(ssh: NodeSSH): Pick<SSHSingleConfig, 'ex
  * const ssh = await connectNodeSSH({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: createNodeSSHConnection(ssh),
  * });
  *

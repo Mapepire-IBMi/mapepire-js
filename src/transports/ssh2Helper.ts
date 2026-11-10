@@ -28,7 +28,6 @@ import type { ExecFunction, ExecChannel, UploadFunction, SSHSingleConfig } from 
  * // ... connect client ...
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: {
  *     exec: createSSH2Exec(client),
  *     serverPath: '/path/to/mapepire-server.jar'
@@ -89,7 +88,6 @@ export function createSSH2Exec(client: Client): ExecFunction {
  * import { SQLJob, createSSH2Exec, createSSH2Upload } from '@ibm/mapepire-js';
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: {
  *     exec: createSSH2Exec(client),
  *     upload: createSSH2Upload(client),  // enables private install
@@ -128,7 +126,6 @@ export function createSSH2Upload(client: Client): UploadFunction {
  * // ... connect client ...
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: createSSH2Connection(client),  // private install enabled automatically
  * });
  *
@@ -160,7 +157,6 @@ export function createSSH2Connection(client: Client): Pick<SSHSingleConfig, 'exe
  * const client = await connectSSH2({ host: 'ibmi.example.com', username: 'USER', password: 'PASS' });
  *
  * const job = SQLJob.withConfig({
- *   transport: 'ssh-single',
  *   sshSingle: createSSH2Connection(client),
  * });
  *
