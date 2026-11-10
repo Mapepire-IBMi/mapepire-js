@@ -4,19 +4,20 @@
  */
 
 import path from "path";
+import { JAR_SHA256, SERVER_VERSION_FILE, VERSION } from "../serverVersion";
 import { BaseTransport, TransportOptions } from "../transport";
-import { DaemonServer, ServerRequest, ServerResponse, SSHSingleConfig, ExecChannel, ExecFunction } from "../types";
+import { DaemonServer, ExecChannel, ExecFunction, ServerRequest, ServerResponse, SSHSingleConfig } from "../types";
 import { LineBuffer } from "./lineBuffer";
+import { ensureServerInstalled } from "./serverInstaller";
 import {
+  bigIntReviver,
   DEFAULT_JAVA_PATH,
-  DEFAULT_OPT_SERVER_PATH,
   DEFAULT_JVM_ARGS,
-  REQUIRED_IBM_I_ENV,
+  DEFAULT_OPT_SERVER_PATH,
   ensureSingleFlag,
+  REQUIRED_IBM_I_ENV,
   shellEscape,
 } from "./utils";
-import { ensureServerInstalled } from "./serverInstaller";
-import { VERSION, SERVER_VERSION_FILE, JAR_SHA256 } from "../serverVersion";
 
 /**
  * Connection states for SSH single transport
@@ -181,13 +182,7 @@ export class SSHSingleTransport extends BaseTransport {
     this.debugLog('received line', { line });
 
     try {
-      const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
-        // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
-        if (context && typeof value === 'number' && String(value) !== context.source) {
-          return context.source;
-        }
-        return value;
-      }) as any);
+      const response: ServerResponse = JSON.parse(line, bigIntReviver);
 
       // If we're handshaking and receive a valid response, consider handshake complete
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {

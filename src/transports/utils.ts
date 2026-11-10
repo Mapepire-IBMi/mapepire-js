@@ -47,3 +47,25 @@ export function ensureSingleFlag(serverArgs: string[] = []): string[] {
 export function shellEscape(arg: string): string {
   return `'${arg.replace(/'/g, "'\\''")}'`;
 }
+
+const SAFE_INT_LENGTH = Number.MAX_SAFE_INTEGER.toString().length;
+/**
+ * Reviver function to use with `JSON.parse` to hand BigInt conversions.
+ * Reviver's `context`field requires Node >= 22, so the conversion won't happen on older versions
+ * 
+ * @param _key The key associated with the value.
+ * @param value The value produced by parsing.
+ * @param context A context object that holds the original JSON string representing this value in its `source` field.
+ * @returns 
+ */
+export function bigIntReviver(_key: string, value: any, context?: { source: string }) {
+  if (context.source && typeof value === 'number' && context.source.length > SAFE_INT_LENGTH && !Number.isSafeInteger(+context.source)) {
+    try{
+      return BigInt(context.source);
+    }
+    catch(error){
+      return context.source;
+    }
+  }
+  return value;
+}

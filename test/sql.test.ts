@@ -1,10 +1,10 @@
 import { beforeAll, expect, test } from "vitest";
-import { DaemonServer } from "../src/types";
 import { SQLJob } from "../src";
-import { getRootCertificate } from "../src/tls";
-import { ENV_CREDS } from "./env";
 import { DEFAULT_APPLICATION_NAME } from "../src/sqlJob";
+import { getRootCertificate } from "../src/tls";
 import { WebSocketTransport } from "../src/transports/websocket";
+import { DaemonServer } from "../src/types";
+import { ENV_CREDS } from "./env";
 
 let creds: DaemonServer = { ...ENV_CREDS };
 let invalidCreds: DaemonServer = {
@@ -57,7 +57,7 @@ test("Run an SQL Query with large and small integers/decimals avoids truncation"
   const job = new SQLJob();
   await job.connect(creds);
 
-  const largeInteger = "123456789012345678901";
+  const largeInteger = 123456789012345678901n;
   const res1 = await job.execute<Record<string, unknown>>(`values(cast('${largeInteger}' as numeric(21,0)))`);
   expect(res1.data[0]["00001"]).toBe(largeInteger);
 
@@ -73,7 +73,7 @@ test("Run an SQL Query with large and small integers/decimals avoids truncation"
   const res4 = await job.execute<Record<string, unknown>>(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
   expect(res4.data[0]["00001"]).toBe(smallDecimal);
 
-  const small2Decimal = "1.00";
+  const small2Decimal = 1.00;
   const res5 = await job.execute<Record<string, unknown>>(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
   expect(res5.data[0]["00001"]).toBe(small2Decimal);
 
