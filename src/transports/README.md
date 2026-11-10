@@ -117,7 +117,6 @@ Need extra options? Spread the connection alongside them:
 
 ```typescript
 const job = SQLJob.withConfig({
-  transport: 'ssh-single',
   sshSingle: {
     ...createSSH2Connection(client),
     javaPath: '/QOpenSys/QIBM/ProdData/JavaVM/jdk17/64bit/bin/java',
