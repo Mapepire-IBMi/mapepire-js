@@ -59,7 +59,7 @@ const SAFE_INT_LENGTH = Number.MAX_SAFE_INTEGER.toString().length;
  * @returns 
  */
 export function bigIntReviver(_key: string, value: any, context?: { source: string }) {
-  if (context.source && typeof value === 'number' && context.source.length > SAFE_INT_LENGTH && !Number.isSafeInteger(+context.source)) {
+  if (context.source && typeof value === 'number' && context.source.length >= SAFE_INT_LENGTH && !Number.isSafeInteger(+context.source)) {
     try{
       return BigInt(context.source);
     }

@@ -57,25 +57,29 @@ test("Run an SQL Query with large and small integers/decimals avoids truncation"
   const job = new SQLJob();
   await job.connect(creds);
 
-  const largeInteger = 123456789012345678901n;
+  const largeInteger = 9007199254740992n;
   const res1 = await job.execute<Record<string, unknown>>(`values(cast('${largeInteger}' as numeric(21,0)))`);
   expect(res1.data[0]["00001"]).toBe(largeInteger);
 
+  const largerInteger = 123456789012345678901n;
+  const res2 = await job.execute<Record<string, unknown>>(`values(cast('${largerInteger}' as numeric(21,0)))`);
+  expect(res2.data[0]["00001"]).toBe(largerInteger);
+
   const largeDecimal = "123456789012345678901.1";
-  const res2 = await job.execute<Record<string, unknown>>(`values(cast('${largeDecimal}' as decimal(22, 1)))`);
-  expect(res2.data[0]["00001"]).toBe(largeDecimal);
+  const res3 = await job.execute<Record<string, unknown>>(`values(cast('${largeDecimal}' as decimal(22, 1)))`);
+  expect(res3.data[0]["00001"]).toBe(largeDecimal);
 
   const smallInteger = 12345;
-  const res3 = await job.execute<Record<string, unknown>>(`values(cast('${smallInteger}' as numeric(5,0)))`);
-  expect(res3.data[0]["00001"]).toBe(smallInteger);
+  const res4 = await job.execute<Record<string, unknown>>(`values(cast('${smallInteger}' as numeric(5,0)))`);
+  expect(res4.data[0]["00001"]).toBe(smallInteger);
 
   const smallDecimal = 123.45;
-  const res4 = await job.execute<Record<string, unknown>>(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
-  expect(res4.data[0]["00001"]).toBe(smallDecimal);
+  const res5 = await job.execute<Record<string, unknown>>(`values(cast('${smallDecimal}' as decimal(5, 2)))`);
+  expect(res5.data[0]["00001"]).toBe(smallDecimal);
 
   const small2Decimal = 1.00;
-  const res5 = await job.execute<Record<string, unknown>>(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
-  expect(res5.data[0]["00001"]).toBe(small2Decimal);
+  const res6 = await job.execute<Record<string, unknown>>(`values(cast('${small2Decimal}' as decimal(3, 2)))`);
+  expect(res6.data[0]["00001"]).toBe(small2Decimal);
 
   await job.close();
 });
