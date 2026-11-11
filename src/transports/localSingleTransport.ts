@@ -1,6 +1,6 @@
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
 import { BaseTransport, TransportOptions } from '../transport';
-import { DaemonServer, ServerRequest, ServerResponse, LocalSingleConfig } from '../types';
+import { DaemonServer, LocalSingleConfig, ServerRequest, ServerResponse } from '../types';
 import { LineBuffer } from './lineBuffer';
 
 enum ConnectionState {
@@ -12,9 +12,10 @@ enum ConnectionState {
 
 import {
   DEFAULT_JAVA_PATH,
-  DEFAULT_SERVER_PATH,
   DEFAULT_JVM_ARGS,
+  DEFAULT_SERVER_PATH,
   REQUIRED_IBM_I_ENV,
+  bigIntReviver,
   ensureSingleFlag,
 } from './utils';
 
@@ -83,13 +84,7 @@ export class LocalSingleTransport extends BaseTransport {
     this.debugLog('recv', line);
 
     try {
-      const response: ServerResponse = JSON.parse(line, ((key: any, value: string, context: any) => {
-        // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
-        if (context && typeof value === 'number' && String(value) !== context.source) {
-          return context.source;
-        }
-        return value;
-      }) as any);
+      const response: ServerResponse = JSON.parse(line, bigIntReviver);
 
       if (this.state === ConnectionState.HANDSHAKING && this.pendingHandshake) {
         this.setState(ConnectionState.READY);
