@@ -13,6 +13,7 @@ import { WebSocketTransport } from "./transports/websocket";
 import {
   BlobRef,
   CLCommandResult,
+  CLJobResult,
   ConnectionResult,
   DaemonServer,
   ExplainResults,
@@ -619,6 +620,27 @@ export class SQLJob {
     };
 
     return await this.send<T>(reqObj);
+  }
+
+  async getClJob() {
+    const reqObj = {
+      id: SQLJob.getNewUniqueId(),
+      type: `getcljob`
+    };
+
+    const result = await this.send<CLJobResult>(reqObj);
+
+    if (result.success !== true) {
+      throw new Error(result.error || `Failed to get CL command documentation`);
+    }
+    else if(result.job !== ""){
+      const jobParts = result.job.split('/');
+      result.number = Number(jobParts[0]);
+      result.user = jobParts[1];
+      result.name = jobParts[2];
+    }
+
+    return result;
   }
 
   /**

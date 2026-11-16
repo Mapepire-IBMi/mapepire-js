@@ -92,3 +92,25 @@ test("Get invalid CL command definition XML", async (ctx) => {
     await job.close();
   }
 });
+
+test("Get CL job identifier", async () => {
+  const job = new SQLJob();
+  await job.connect(creds);
+
+  //no CL run yet: no remote command job starter
+  const noCLJob = await job.getClJob();
+  expect(noCLJob.job).toBe("");
+  expect(noCLJob.number).toBe(undefined);
+  expect(noCLJob.user).toBe(undefined);
+  expect(noCLJob.name).toBe(undefined);
+
+  const command = await job.rcclcommand('DSPLIBL');
+  expect(command.success).toBe(true);
+
+  const clJob = await job.getClJob();
+  expect(clJob.job).toBeTruthy();
+  const jobParts = clJob.job.split('/');
+  expect(clJob.number).toBe(Number(jobParts[0]))
+  expect(clJob.user).toBe(jobParts[1]);
+  expect(clJob.name).toBe(jobParts[2]);
+});
