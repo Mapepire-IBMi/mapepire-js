@@ -622,16 +622,16 @@ export class SQLJob {
     return await this.send<T>(reqObj);
   }
 
-  async getClJob() {
+  async getrcclJob() {
     const reqObj = {
       id: SQLJob.getNewUniqueId(),
-      type: `getcljob`
+      type: `getrccljob`
     };
 
     const result = await this.send<CLJobResult>(reqObj);
 
     if (result.success !== true) {
-      throw new Error(result.error || `Failed to get CL command documentation`);
+      throw new Error(result.error || `Failed to get remote command job ID`);
     }
     else if(result.job !== ""){
       const jobParts = result.job.split('/');

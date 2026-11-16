@@ -98,7 +98,7 @@ test("Get CL job identifier", async () => {
   await job.connect(creds);
 
   //no CL run yet: no remote command job starter
-  const noCLJob = await job.getClJob();
+  const noCLJob = await job.getrcclJob();
   expect(noCLJob.job).toBe("");
   expect(noCLJob.number).toBe(undefined);
   expect(noCLJob.user).toBe(undefined);
@@ -109,7 +109,7 @@ test("Get CL job identifier", async () => {
   expect(command.success).toBe(true);
 
   //get the remote command job identifier
-  const clJob = await job.getClJob();
+  const clJob = await job.getrcclJob();
   expect(clJob.job).toBeTruthy();
   const jobParts = clJob.job.split('/');
   expect(clJob.number).toBe(Number(jobParts[0]))
