@@ -104,9 +104,11 @@ test("Get CL job identifier", async () => {
   expect(noCLJob.user).toBe(undefined);
   expect(noCLJob.name).toBe(undefined);
 
+  //run a simple command
   const command = await job.rcclcommand('DSPLIBL');
   expect(command.success).toBe(true);
 
+  //get the remote command job identifier
   const clJob = await job.getClJob();
   expect(clJob.job).toBeTruthy();
   const jobParts = clJob.job.split('/');
