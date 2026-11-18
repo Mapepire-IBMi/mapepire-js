@@ -355,6 +355,14 @@ export interface SqlCLCommandResult extends ServerResponse {
 /** Result of a CL command run in the remote command job (`SQLJob.rcclcommand`). */
 export interface CLCommandResult extends Omit<SqlCLCommandResult, "sql_rc" | "sql_state"> { }
 
+/** The remote command job identifier used to run CL through `rccl`. */
+export interface CLJobResult extends ServerResponse {
+  job: string
+  name?: string
+  user?: string
+  number?: number
+}
+
 /** Interface representing the result of a CL command documentation request. */
 export interface GetClDocResult extends ServerResponse {
   /** The command help documentation in HTML format. */
