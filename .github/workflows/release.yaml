@@ -32,6 +32,8 @@ jobs:
 
       - name: Install NPM Dependencies
         run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         run: npm run webpack
