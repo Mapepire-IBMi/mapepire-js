@@ -5,6 +5,7 @@
 import WebSocket from "ws";
 import { BaseTransport, TransportOptions } from "../transport";
 import { DaemonServer, ServerRequest, ServerResponse } from "../types";
+import { bigIntReviver } from "./utils";
 
 export const DEFAULT_PORT = 8076;
 
@@ -54,13 +55,7 @@ export class WebSocketTransport extends BaseTransport {
         this.trace(asString);
 
         try {
-          const response: ServerResponse = JSON.parse(asString, ((key: any, value: string, context: any) => {
-            // 'context' on the reviver callback requires Node >= 22, so this silently fails on older versions
-            if (context && typeof value === 'number' && String(value) !== context.source) {
-              return context.source;
-            }
-            return value;
-          }) as any);
+          const response: ServerResponse = JSON.parse(asString, bigIntReviver);
           this.emitResponse(response);
         } catch (e: any) {
           console.error(`Error parsing response: ` + e);
